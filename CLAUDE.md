@@ -241,6 +241,6 @@ Add new shell functions to `shell/functions.sh`:
 
 ### Git Workflow
 
-- The main branch is `master`
+- The main branch is `main`
 - Remote: `git@github.com:Aivanaso/dotfiles.git`
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
