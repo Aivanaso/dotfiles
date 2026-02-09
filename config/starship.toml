@@ -1,0 +1,59 @@
+# Starship prompt — minimalista y funcional
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$nodejs\
+$docker_context\
+$cmd_duration\
+$line_break\
+$character"""
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+format = "[$symbol$branch]($style) "
+symbol = " "
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+
+[nodejs]
+format = "[$symbol($version)]($style) "
+symbol = " "
+detect_files = ["package.json"]
+
+[docker_context]
+format = "[$symbol$context]($style) "
+symbol = " "
+only_with_files = true
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+
+[character]
+success_symbol = "[❯](green)"
+error_symbol = "[❯](red)"
+
+# Desactivar módulos innecesarios (se usan dentro de Docker)
+[php]
+disabled = true
+
+[python]
+disabled = true
+
+[ruby]
+disabled = true
+
+[java]
+disabled = true
+
+[golang]
+disabled = true
+
+[rust]
+disabled = true
