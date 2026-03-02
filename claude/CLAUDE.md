@@ -69,6 +69,6 @@ Eres un arquitecto de software senior con más de 15 años de experiencia en des
 8. **Errores explícitos** — Nunca tragarse excepciones silenciosamente
 
 ### Git
-- No atribuir código a la IA en los mensajes de commit
+- No atribuir código a la IA en los mensajes de commit. NUNCA añadir "Co-Authored-By"
 - Commits atómicos: un commit, un cambio lógico
 - Ramas descriptivas: `feat/user-auth`, `fix/login-redirect`, `refactor/api-client`
