@@ -16,7 +16,7 @@ source:  ## Instalar FZF y FNM desde source
 claude:  ## Configurar Claude Code + Cursor
 	bash $(DOTFILES_DIR)/scripts/install_claude.sh
 
-git:  ## Enlazar .gitconfig
+git:  ## Enlazar .gitconfig y configurar datos personales
 	@if [ -L "$(HOME)/.gitconfig" ] && [ "$$(readlink -f "$(HOME)/.gitconfig")" = "$$(readlink -f "$(DOTFILES_DIR)/git/.gitconfig")" ]; then \
 		echo "\033[1;33m↔  .gitconfig ya está enlazado — skip\033[0m"; \
 	else \
@@ -27,6 +27,15 @@ git:  ## Enlazar .gitconfig
 		fi; \
 		ln -sf "$(DOTFILES_DIR)/git/.gitconfig" "$(HOME)/.gitconfig"; \
 		echo "\033[0;32m✅ .gitconfig enlazado\033[0m"; \
+	fi
+	@if [ ! -f "$(HOME)/.gitconfig.local" ]; then \
+		echo "\033[1;33m👤 Configurando datos personales de Git...\033[0m"; \
+		read -rp "   Nombre: " git_name; \
+		read -rp "   Email:  " git_email; \
+		printf "[user]\n    name = %s\n    email = %s\n" "$$git_name" "$$git_email" > "$(HOME)/.gitconfig.local"; \
+		echo "\033[0;32m✅ ~/.gitconfig.local creado\033[0m"; \
+	else \
+		echo "\033[1;33m↔  ~/.gitconfig.local ya existe — skip\033[0m"; \
 	fi
 
 starship:  ## Enlazar starship.toml

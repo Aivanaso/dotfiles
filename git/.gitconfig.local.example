@@ -1,0 +1,8 @@
+# Copia este fichero a ~/.gitconfig.local y edita tus datos personales.
+# Este fichero NO está commiteado en el repo — tus datos se quedan en tu máquina.
+#
+#   cp git/.gitconfig.local.example ~/.gitconfig.local
+
+[user]
+    name = Tu Nombre
+    email = tu@email.com

@@ -1,7 +1,3 @@
-[user]
-    name = CAMBIA_TU_NOMBRE
-    email = CAMBIA_TU_EMAIL
-
 [core]
     editor = vim
     autocrlf = input
@@ -37,3 +33,6 @@
 
 [merge]
     conflictstyle = diff3
+
+[include]
+    path = ~/.gitconfig.local
