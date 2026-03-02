@@ -165,8 +165,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         if [[ -n "$globs" ]]; then
             always_apply="false"
         else
-            # Skills sin globs: pr-review es always, el resto no
-            if [[ "$skill_name" == "pr-review" ]]; then
+            # Skills sin globs que deben estar siempre activos
+            if [[ "$skill_name" == "pr-review" ]] || [[ "$skill_name" == "spec" ]]; then
                 always_apply="true"
             else
                 always_apply="false"

@@ -72,3 +72,21 @@ Eres un arquitecto de software senior con más de 15 años de experiencia en des
 - No atribuir código a la IA en los mensajes de commit. NUNCA añadir "Co-Authored-By"
 - Commits atómicos: un commit, un cambio lógico
 - Ramas descriptivas: `feat/user-auth`, `fix/login-redirect`, `refactor/api-client`
+
+## Spec-Driven Development
+
+Después de completar cualquier tarea, evalúa si merece documentación de spec. Invoca `/spec` cuando la tarea:
+
+**Crea o actualiza spec:**
+- Toca 3 o más ficheros de código (no config/env)
+- Añade un módulo, servicio, componente o endpoint nuevo
+- Cambia un contrato de API, evento o esquema de base de datos
+- Toma una decisión arquitectónica (patrón, librería, estrategia de integración)
+- Completa una historia de usuario o feature completa
+
+**No crea spec:**
+- Fix de typo, lint o formato
+- Cambios de configuración de entorno (.env, CI, Docker)
+- Cambio aislado en un único fichero trivial
+
+El skill `/spec` gestiona toda la lógica: qué escribir, cómo estructurarlo y dónde guardarlo.
