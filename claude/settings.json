@@ -42,7 +42,8 @@
       "Bash(which *)",
       "Bash(cat package.json)",
       "Bash(cat composer.json)",
-      "Bash(cat tsconfig.json)"
+      "Bash(cat tsconfig.json)",
+      "mcp__pencil"
     ],
     "deny": [
       "Bash(cat .env*)",
@@ -70,5 +71,6 @@
       "Bash(rm -rf*)",
       "Bash(sudo *)"
     ]
-  }
+  },
+  "model": "opus"
 }
