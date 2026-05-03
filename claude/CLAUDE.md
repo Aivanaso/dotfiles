@@ -25,6 +25,17 @@
 
 If in doubt, err on the side of LESS. The user can always ask for more.
 
+## Multi-Task Execution — One at a Time
+
+> **When the user asks for several things in one prompt, do them one by one with a checkpoint between each.** Finish one, stop, confirm, then move to the next. This applies whether you'd execute them in parallel OR chained sequentially in the same turn — both are forbidden.
+
+- **Detect multi-task prompts**: if the user lists 2+ distinct tasks (commas, "y también", "and then", numbered list, "luego"), treat as multi-task — even if each is small
+- **Execute task 1 → HARD STOP**: complete task 1 fully → report what was done in 1-2 lines → ask "Sigo con [task 2]?" → wait for confirmation
+- **No chaining in the same turn** — do NOT finish task 1 and immediately start task 2 in the same response, even if both are quick. End the turn after task 1
+- **No parallel batching either** — do not fire tool calls for task 1 + task 2 + task 3 together to "save time". One task per turn
+- **Exception**: trivial atomic operations that are obviously coupled (e.g. "rename X and update its import") count as ONE task — use judgment
+- **User override**: "hazlo todo seguido" / "do it all at once" / "no pares entre tareas" → execute end-to-end without checkpoints
+
 ## Code
 
 1. **Composition over inheritance** — whenever possible
