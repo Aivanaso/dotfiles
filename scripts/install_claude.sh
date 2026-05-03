@@ -45,6 +45,39 @@ create_symlink() {
     echo -e "${GREEN}✅ $name enlazado${NC}"
 }
 
+# Crear fichero real con @import al fichero del repo.
+# Útil para CLAUDE.md: aplicaciones (Claude Code, etc) que escriben en
+# ~/.claude/CLAUDE.md modificarían el repo si fuera symlink. Con un
+# fichero real que sólo contiene "@<ruta>", el contenido del repo se
+# inyecta vía import y los cambios externos quedan en local.
+create_import_file() {
+    local source="$1"
+    local target="$2"
+    local name="$3"
+    local import_line="@$source"
+
+    # Si ya es un fichero real (no symlink) cuya primera línea no vacía es el import, skip
+    if [[ -f "$target" && ! -L "$target" ]]; then
+        local first_line
+        first_line=$(grep -v '^$' "$target" | head -1)
+        if [[ "$first_line" == "$import_line" ]]; then
+            echo -e "${YELLOW}↔  $name ya tiene el import — skip${NC}"
+            return 0
+        fi
+    fi
+
+    # Si existe algo (symlink, fichero, dir), backup
+    if [[ -e "$target" ]] || [[ -L "$target" ]]; then
+        local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
+        echo -e "${YELLOW}📦 Backup de $name existente → $backup${NC}"
+        mv "$target" "$backup"
+    fi
+
+    # Crear fichero con import
+    echo "$import_line" > "$target"
+    echo -e "${GREEN}✅ $name creado con import → $source${NC}"
+}
+
 # Obtener globs de Cursor para un skill
 get_cursor_globs() {
     local skill_name="$1"
@@ -107,8 +140,9 @@ echo -e "${GREEN}=== Claude Code ===${NC}"
 # Crear directorio ~/.claude si no existe
 mkdir -p "$CLAUDE_HOME"
 
-# Enlazar CLAUDE.md
-create_symlink "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
+# CLAUDE.md como fichero con @import (no symlink) — evita que apps que
+# escriben en ~/.claude/CLAUDE.md ensucien el repo
+create_import_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
 
 # Enlazar settings.json
 create_symlink "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
@@ -199,7 +233,7 @@ echo -e "${GREEN}  Instalación completada${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  Claude Code:"
-echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}       → prompt principal"
+echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}       → @import al repo (apps escriben en local)"
 echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → permisos"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}          → skills"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}   → estilos de respuesta"
