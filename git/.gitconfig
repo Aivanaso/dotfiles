@@ -2,6 +2,7 @@
     editor = vim
     autocrlf = input
     pager = less -FRX
+    excludesfile = ~/.gitignore
 
 [init]
     defaultBranch = main
