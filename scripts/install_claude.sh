@@ -45,6 +45,56 @@ create_symlink() {
     echo -e "${GREEN}✅ $name enlazado${NC}"
 }
 
+# Merge JSON con jq: repo aporta defaults, local manda en conflictos.
+# Útil para settings.json: el repo trae permissions/model como semilla,
+# pero claves locales (hooks, plugins, statusLine escritos por apps)
+# se conservan intactas. Edits en repo solo se propagan a claves nuevas.
+merge_json_local_wins() {
+    local source="$1"
+    local target="$2"
+    local name="$3"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}❌ jq no instalado — no se puede mergear $name${NC}"
+        return 1
+    fi
+
+    # Si no existe local, copia simple
+    if [[ ! -f "$target" ]] && [[ ! -L "$target" ]]; then
+        cp "$source" "$target"
+        echo -e "${GREEN}✅ $name copiado desde repo (no existía local)${NC}"
+        return 0
+    fi
+
+    # Si es symlink, romper antes (un symlink no es un local "real")
+    if [[ -L "$target" ]]; then
+        local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
+        echo -e "${YELLOW}📦 Backup de symlink $name → $backup${NC}"
+        mv "$target" "$backup"
+        cp "$source" "$target"
+        echo -e "${GREEN}✅ $name copiado desde repo (era symlink)${NC}"
+        return 0
+    fi
+
+    # Backup del local antes del merge
+    local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$target" "$backup"
+
+    # Merge: repo + local, local gana en conflictos (el segundo argumento
+    # de `*` sobrescribe). Arrays se reemplazan, no se concatenan.
+    local tmp
+    tmp="$(mktemp)"
+    if jq -s '.[0] * .[1]' "$source" "$target" > "$tmp"; then
+        mv "$tmp" "$target"
+        echo -e "${GREEN}✅ $name merged — local manda, repo aporta claves nuevas${NC}"
+        echo -e "${YELLOW}   Backup: $backup${NC}"
+    else
+        rm -f "$tmp"
+        echo -e "${RED}❌ Error en merge JSON de $name — conservado original${NC}"
+        return 1
+    fi
+}
+
 # Copiar directorio del repo a ~/.claude (no symlink).
 # Útil para output-styles/: aplicaciones (Claude Code, etc) pueden
 # escribir en ~/.claude/output-styles/ y con symlink ensuciarían el
@@ -166,8 +216,10 @@ mkdir -p "$CLAUDE_HOME"
 # escriben en ~/.claude/CLAUDE.md ensucien el repo
 create_import_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
 
-# Enlazar settings.json
-create_symlink "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
+# settings.json: merge con jq (repo + local, local manda). El repo
+# aporta permissions/model como semilla; claves locales (hooks, plugins,
+# statusLine escritos por apps) se conservan.
+merge_json_local_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
 
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
@@ -259,7 +311,7 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  Claude Code:"
 echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}       → @import al repo (apps escriben en local)"
-echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → symlink al repo"
+echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → merge JSON (local manda, repo aporta defaults)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}   → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}          → no gestionado (usar 'npx autoskills' por proyecto)"
 
