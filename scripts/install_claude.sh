@@ -45,6 +45,28 @@ create_symlink() {
     echo -e "${GREEN}✅ $name enlazado${NC}"
 }
 
+# Copiar directorio del repo a ~/.claude (no symlink).
+# Útil para output-styles/: aplicaciones (Claude Code, etc) pueden
+# escribir en ~/.claude/output-styles/ y con symlink ensuciarían el
+# repo. Con copia, los cambios externos quedan en local. Re-ejecutar
+# el install actualiza desde el repo (sobrescribe con backup).
+copy_directory() {
+    local source="$1"
+    local target="$2"
+    local name="$3"
+
+    # Si ya existe (symlink, dir o fichero), backup
+    if [[ -e "$target" ]] || [[ -L "$target" ]]; then
+        local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
+        echo -e "${YELLOW}📦 Backup de $name existente → $backup${NC}"
+        mv "$target" "$backup"
+    fi
+
+    # Copiar recursivamente
+    cp -r "$source" "$target"
+    echo -e "${GREEN}✅ $name copiado desde repo${NC}"
+}
+
 # Crear fichero real con @import al fichero del repo.
 # Útil para CLAUDE.md: aplicaciones (Claude Code, etc) que escriben en
 # ~/.claude/CLAUDE.md modificarían el repo si fuera symlink. Con un
@@ -147,11 +169,14 @@ create_import_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
 # Enlazar settings.json
 create_symlink "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
 
-# Enlazar directorio skills/
-create_symlink "$CLAUDE_DIR/skills" "$CLAUDE_HOME/skills" "skills/"
+# skills/ NO se gestiona desde aquí. Las skills globales viven en
+# ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
+# Para skills por proyecto: usar `npx autoskills` dentro del proyecto.
+# claude/skills/ del repo queda como archivo histórico de referencia.
 
-# Enlazar directorio output-styles/
-create_symlink "$CLAUDE_DIR/output-styles" "$CLAUDE_HOME/output-styles" "output-styles/"
+# Copiar directorio output-styles/ (no symlink: apps externas pueden
+# escribir aquí y ensuciarían el repo)
+copy_directory "$CLAUDE_DIR/output-styles" "$CLAUDE_HOME/output-styles" "output-styles/"
 
 echo ""
 echo -e "${GREEN}✅ Claude Code configurado${NC}"
@@ -234,9 +259,9 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  Claude Code:"
 echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}       → @import al repo (apps escriben en local)"
-echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → permisos"
-echo -e "    ${YELLOW}~/.claude/skills/${NC}          → skills"
-echo -e "    ${YELLOW}~/.claude/output-styles/${NC}   → estilos de respuesta"
+echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → symlink al repo"
+echo -e "    ${YELLOW}~/.claude/output-styles/${NC}   → copiado del repo (no symlink)"
+echo -e "    ${YELLOW}~/.claude/skills/${NC}          → no gestionado (usar 'npx autoskills' por proyecto)"
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
