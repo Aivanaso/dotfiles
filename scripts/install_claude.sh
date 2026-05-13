@@ -45,11 +45,12 @@ create_symlink() {
     echo -e "${GREEN}✅ $name enlazado${NC}"
 }
 
-# Merge JSON con jq: repo aporta defaults, local manda en conflictos.
-# Útil para settings.json: el repo trae permissions/model como semilla,
-# pero claves locales (hooks, plugins, statusLine escritos por apps)
-# se conservan intactas. Edits en repo solo se propagan a claves nuevas.
-merge_json_local_wins() {
+# Merge JSON con jq: repo manda en las claves que define, el local
+# conserva las que el repo no toca. Útil para settings.json:
+# permissions/model/statusLine vienen del repo (fuente de verdad);
+# claves locales que apps escriben (hooks, enabledPlugins) se
+# preservan intactas por exclusión.
+merge_json_repo_wins() {
     local source="$1"
     local target="$2"
     local name="$3"
@@ -80,13 +81,16 @@ merge_json_local_wins() {
     local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
     cp "$target" "$backup"
 
-    # Merge: repo + local, local gana en conflictos (el segundo argumento
-    # de `*` sobrescribe). Arrays se reemplazan, no se concatenan.
+    # Merge: local + repo, repo gana en conflictos (el segundo argumento
+    # de `*` sobrescribe). Claves que solo están en el local (hooks,
+    # enabledPlugins, etc.) se preservan por exclusión. Arrays se
+    # reemplazan, no se concatenan: el repo es la fuente de verdad
+    # para permissions/model/statusLine.
     local tmp
     tmp="$(mktemp)"
-    if jq -s '.[0] * .[1]' "$source" "$target" > "$tmp"; then
+    if jq -s '.[1] * .[0]' "$source" "$target" > "$tmp"; then
         mv "$tmp" "$target"
-        echo -e "${GREEN}✅ $name merged — local manda, repo aporta claves nuevas${NC}"
+        echo -e "${GREEN}✅ $name merged — repo manda, claves locales únicas se preservan${NC}"
         echo -e "${YELLOW}   Backup: $backup${NC}"
     else
         rm -f "$tmp"
@@ -114,6 +118,26 @@ copy_directory() {
 
     # Copiar recursivamente
     cp -r "$source" "$target"
+    echo -e "${GREEN}✅ $name copiado desde repo${NC}"
+}
+
+# Copiar fichero individual del repo a destino, con backup si existe.
+# Útil para statusline-command.sh: el script vive en el repo pero se
+# copia (no symlink) para que apps externas puedan modificarlo en local
+# sin ensuciar el repo. Re-ejecutar el install sobrescribe con backup.
+copy_file() {
+    local source="$1"
+    local target="$2"
+    local name="$3"
+
+    # Si ya existe (symlink, fichero), backup
+    if [[ -e "$target" ]] || [[ -L "$target" ]]; then
+        local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
+        echo -e "${YELLOW}📦 Backup de $name existente → $backup${NC}"
+        mv "$target" "$backup"
+    fi
+
+    cp "$source" "$target"
     echo -e "${GREEN}✅ $name copiado desde repo${NC}"
 }
 
@@ -216,10 +240,17 @@ mkdir -p "$CLAUDE_HOME"
 # escriben en ~/.claude/CLAUDE.md ensucien el repo
 create_import_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
 
-# settings.json: merge con jq (repo + local, local manda). El repo
-# aporta permissions/model como semilla; claves locales (hooks, plugins,
-# statusLine escritos por apps) se conservan.
-merge_json_local_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
+# settings.json: merge con jq (repo manda, claves locales únicas
+# se preservan). El repo es fuente de verdad para permissions/model/
+# statusLine; claves que apps externas escriben (hooks de RTK,
+# enabledPlugins de Claude Code) no las define el repo, así que el
+# merge no las toca.
+merge_json_repo_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
+
+# statusline-command.sh: script que pinta la status line de Claude Code.
+# Se copia (no symlink) para que apps externas puedan modificarlo en
+# local sin ensuciar el repo.
+copy_file "$CLAUDE_DIR/statusline-command.sh" "$CLAUDE_HOME/statusline-command.sh" "statusline-command.sh"
 
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
@@ -310,10 +341,11 @@ echo -e "${GREEN}  Instalación completada${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  Claude Code:"
-echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}       → @import al repo (apps escriben en local)"
-echo -e "    ${YELLOW}~/.claude/settings.json${NC}   → merge JSON (local manda, repo aporta defaults)"
-echo -e "    ${YELLOW}~/.claude/output-styles/${NC}   → copiado del repo (no symlink)"
-echo -e "    ${YELLOW}~/.claude/skills/${NC}          → no gestionado (usar 'npx autoskills' por proyecto)"
+echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}                → @import al repo (apps escriben en local)"
+echo -e "    ${YELLOW}~/.claude/settings.json${NC}            → merge JSON (repo manda, claves locales únicas se preservan)"
+echo -e "    ${YELLOW}~/.claude/statusline-command.sh${NC}    → copiado del repo (no symlink)"
+echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
+echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
