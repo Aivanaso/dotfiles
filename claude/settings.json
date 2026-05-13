@@ -16,10 +16,14 @@
       "Bash(git show*)",
       "Bash(git fetch*)",
       "Bash(git merge*)",
+      "Bash(git commit*)",
+      "Bash(git rev-parse*)",
+      "Bash(git ls-files*)",
       "Bash(npm *)",
       "Bash(npx *)",
       "Bash(yarn *)",
       "Bash(pnpm *)",
+      "Bash(rtk *)",
       "Bash(composer *)",
       "Bash(php *)",
       "Bash(symfony console *)",
@@ -40,6 +44,11 @@
       "Bash(mv *)",
       "Bash(chmod *)",
       "Bash(which *)",
+      "Bash(find *)",
+      "Bash(rg *)",
+      "Bash(grep *)",
+      "Bash(tree *)",
+      "Bash(rm -rf .ai-team/*)",
       "Bash(cat package.json)",
       "Bash(cat composer.json)",
       "Bash(cat tsconfig.json)",
@@ -62,7 +71,6 @@
       "Read(*.key)"
     ],
     "ask": [
-      "Bash(git commit*)",
       "Bash(git push*)",
       "Bash(git push --force*)",
       "Bash(git rebase*)",
@@ -72,5 +80,9 @@
       "Bash(sudo *)"
     ]
   },
-  "model": "opus"
+  "model": "opus",
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/ivan/.claude/statusline-command.sh"
+  }
 }
