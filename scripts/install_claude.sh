@@ -252,6 +252,11 @@ merge_json_repo_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "s
 # local sin ensuciar el repo.
 copy_file "$CLAUDE_DIR/statusline-command.sh" "$CLAUDE_HOME/statusline-command.sh" "statusline-command.sh"
 
+# notify-hook.sh: notificación "inteligente" para hooks Stop/Notification.
+# Solo dispara notify-send si la terminal NO está enfocada.
+copy_file "$CLAUDE_DIR/notify-hook.sh" "$CLAUDE_HOME/notify-hook.sh" "notify-hook.sh"
+chmod +x "$CLAUDE_HOME/notify-hook.sh"
+
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
 # Para skills por proyecto: usar `npx autoskills` dentro del proyecto.
@@ -344,6 +349,7 @@ echo -e "  Claude Code:"
 echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}                → @import al repo (apps escriben en local)"
 echo -e "    ${YELLOW}~/.claude/settings.json${NC}            → merge JSON (repo manda, claves locales únicas se preservan)"
 echo -e "    ${YELLOW}~/.claude/statusline-command.sh${NC}    → copiado del repo (no symlink)"
+echo -e "    ${YELLOW}~/.claude/notify-hook.sh${NC}           → copiado del repo (notificación inteligente)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
 

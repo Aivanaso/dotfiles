@@ -84,5 +84,27 @@
   "statusLine": {
     "type": "command",
     "command": "bash /home/ivan/.claude/statusline-command.sh"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Turno terminado' normal"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Necesita tu atención' critical"
+          }
+        ]
+      }
+    ]
   }
 }
