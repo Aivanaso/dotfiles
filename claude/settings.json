@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Turno terminado' normal"
+            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Turno terminado' normal /usr/share/sounds/freedesktop/stereo/complete.oga"
           }
         ]
       }
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Necesita tu atención' critical"
+            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Necesita tu atención' critical /usr/share/sounds/freedesktop/stereo/message.oga"
           }
         ]
       }
