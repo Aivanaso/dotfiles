@@ -274,8 +274,13 @@ echo -e "${GREEN}✅ Claude Code configurado${NC}"
 # ============================================
 
 echo ""
-read -p "¿Instalar reglas de Cursor? (y/n) " -n 1 -r
-echo ""
+if [[ -t 0 ]]; then
+    read -p "¿Instalar reglas de Cursor? (y/n) " -n 1 -r
+    echo ""
+else
+    echo -e "${YELLOW}Sin TTY — Cursor skip (ejecútalo manualmente si quieres reglas)${NC}"
+    REPLY=""
+fi
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}=== Cursor ===${NC}"
