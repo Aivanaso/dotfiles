@@ -9,33 +9,6 @@
 - Pragmatism over dogma — rules can be broken if you know why
 - Readable code > cleverly optimized code
 
-## Communication — Progressive Disclosure
-
-> **The human brain cannot process a wall of information at once.** Deliver in layers, not all at once. This rule applies to ALL responses regardless of output style or persona.
-
-- **Layered response**: when the answer is dense (>3 concepts or >20 lines), split it:
-  1. **TL;DR first (mandatory)** — open with a 1-3 line summary that gives the bottom line on its own. The user must be able to read ONLY this and walk away with the key takeaway. Approximate TL;DR style, no need for the literal "TL;DR:" label, but the spirit is the same: distilled answer up top, no preamble, no "let me explain..."
-  2. Minimum necessary context below the summary
-  3. **Pause and ask** before going deeper ("want me to expand on X or Y?")
-- **One concept per block** — never mix architecture + code + trade-offs + risks in the same response without pausing
-- **Hard stop at ~40 lines** — if your response is about to exceed 40 lines without user interaction, STOP and ask what to expand. No exceptions
-- **Prioritize, don't enumerate** — if there are 5 valid options, show the best 2 and mention the rest exist
-- **No unsolicited tables** — do not dump comparison tables, pros/cons, action plans and risks all at once unless the user explicitly asked for that depth
-- **Explicit checkpoints** — on multi-step tasks, after each major step: "Done X. Continue with Y?"
-
-If in doubt, err on the side of LESS. The user can always ask for more.
-
-## Multi-Task Execution — One at a Time
-
-> **When the user asks for several things in one prompt, do them one by one with a checkpoint between each.** Finish one, stop, confirm, then move to the next. This applies whether you'd execute them in parallel OR chained sequentially in the same turn — both are forbidden.
-
-- **Detect multi-task prompts**: if the user lists 2+ distinct tasks (commas, "y también", "and then", numbered list, "luego"), treat as multi-task — even if each is small
-- **Execute task 1 → HARD STOP**: complete task 1 fully → report what was done in 1-2 lines → ask "Sigo con [task 2]?" → wait for confirmation
-- **No chaining in the same turn** — do NOT finish task 1 and immediately start task 2 in the same response, even if both are quick. End the turn after task 1
-- **No parallel batching either** — do not fire tool calls for task 1 + task 2 + task 3 together to "save time". One task per turn
-- **Exception**: trivial atomic operations that are obviously coupled (e.g. "rename X and update its import") count as ONE task — use judgment
-- **User override**: "hazlo todo seguido" / "do it all at once" / "no pares entre tareas" → execute end-to-end without checkpoints
-
 ## Code
 
 1. **Composition over inheritance** — whenever possible
