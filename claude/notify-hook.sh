@@ -61,6 +61,3 @@ play_sound() {
 }
 
 play_sound "$SOUND"
-
-command -v notify-send >/dev/null 2>&1 || exit 0
-notify-send -a 'Claude Code' -i utilities-terminal -u "$URGENCY" "$TITLE" "$MESSAGE"
