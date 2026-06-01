@@ -1,4 +1,4 @@
-.PHONY: all help shell packages source claude git starship
+.PHONY: all help shell packages source claude git starship recovery
 
 DOTFILES_DIR := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 
@@ -12,6 +12,9 @@ packages:  ## Instalar paquetes del sistema + Docker + Starship
 
 source:  ## Instalar FZF y FNM desde source
 	bash $(DOTFILES_DIR)/scripts/install_from_source.sh
+
+recovery:  ## Configurar resiliencia del sistema (zram, earlyoom, sysrq)
+	bash $(DOTFILES_DIR)/scripts/install_system_recovery.sh
 
 claude:  ## Configurar Claude Code + Cursor
 	bash $(DOTFILES_DIR)/scripts/install_claude.sh

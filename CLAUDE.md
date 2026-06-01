@@ -25,6 +25,7 @@ make all
 make packages    # System packages + Docker + Starship
 make source      # FZF + FNM from source
 make claude      # Claude Code + Cursor config
+make recovery    # OOM protection: zram, earlyoom, sysrq, swappiness
 make git         # Symlink .gitconfig
 make starship    # Symlink starship.toml
 make shell       # Show shell sourcing instructions
@@ -203,6 +204,21 @@ Purpose: Install system packages, Docker, and Starship
 - Same patterns as `install_from_source.sh`: `set -e`, colors, emojis, idempotent
 - Docker installation is interactive (requires user confirmation)
 
+### scripts/install_system_recovery.sh
+
+Purpose: Configure system resilience against memory-pressure hangs (OOM thrashing) and enable recovery from a frozen system
+
+**What it configures:**
+1. **sysctl** — writes `/etc/sysctl.d/99-sysrq.conf` (`kernel.sysrq=1`, full Magic SysRq for REISUB recovery) and `/etc/sysctl.d/99-zram.conf` (`vm.swappiness=180`)
+2. **zram** — installs `zram-tools`, configures `/etc/default/zramswap` (zstd, 50% RAM, priority 100) for compressed swap in RAM
+3. **earlyoom** — installs `earlyoom`, configures `/etc/default/earlyoom` (`-m 5 -s 5 -r 60`) to kill runaway processes before the system locks up
+
+**Key characteristics:**
+- Same patterns as `install_packages.sh`: `set -e`, colors, emojis, idempotent
+- Requires sudo (writes under `/etc`, installs packages, manages systemd services)
+- NOT part of `make all` — invasive (changes kernel memory policy); run explicitly with `make recovery`
+- zram (priority 100) is used before the existing disk swapfile (priority -2)
+
 ### Makefile
 
 Purpose: Orchestrate all installation targets
@@ -212,6 +228,7 @@ Purpose: Orchestrate all installation targets
 - `packages` — Run `install_packages.sh`
 - `source` — Run `install_from_source.sh`
 - `claude` — Run `install_claude.sh`
+- `recovery` — Run `install_system_recovery.sh` (OOM protection; not in `all`)
 - `git` — Symlink `.gitconfig` with backup
 - `starship` — Symlink `starship.toml` with backup
 - `shell` — Print shell sourcing instructions
