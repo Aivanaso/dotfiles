@@ -26,4 +26,10 @@
 - Atomic commits: one commit, one logical change
 - Descriptive branches: `feat/user-auth`, `fix/login-redirect`, `refactor/api-client`
 
+## Shell
+
+- Prefer `rg`/`grep -r --include` over `find -exec` — `-exec` executes commands and can never be auto-allowed, so it always triggers a permission prompt
+- Pass absolute paths to tools (`rg <path>`, `grep -r <path>`, `git -C <path>`) instead of `cd dir && cmd` — `cd` combined with file redirections (e.g. `2>/dev/null`) always forces manual approval, even when the `cd` path is absolute; if `cd` is unavoidable (`./gradlew`), avoid file redirections in that command
+- Don't spawn `python3 -c`/`awk` one-liners for trivial aggregations — compute them yourself from the command output
+
 @RTK.md
