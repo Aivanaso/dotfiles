@@ -47,9 +47,9 @@ create_symlink() {
 
 # Merge JSON con jq: repo manda en las claves que define, el local
 # conserva las que el repo no toca. Útil para settings.json:
-# permissions/model/statusLine vienen del repo (fuente de verdad);
-# claves locales que apps escriben (hooks, enabledPlugins) se
-# preservan intactas por exclusión.
+# permissions/model/statusLine/hooks vienen del repo (fuente de
+# verdad); claves runtime que apps escriben en local (enabledPlugins,
+# effortLevel, advisorModel...) se preservan intactas por exclusión.
 merge_json_repo_wins() {
     local source="$1"
     local target="$2"
@@ -242,9 +242,9 @@ create_import_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md"
 
 # settings.json: merge con jq (repo manda, claves locales únicas
 # se preservan). El repo es fuente de verdad para permissions/model/
-# statusLine; claves que apps externas escriben (hooks de RTK,
-# enabledPlugins de Claude Code) no las define el repo, así que el
-# merge no las toca.
+# statusLine/hooks; claves runtime que escribe Claude Code en local
+# (enabledPlugins, effortLevel, advisorModel...) no las define el
+# repo, así que el merge no las toca.
 merge_json_repo_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
 
 # statusline-command.sh: script que pinta la status line de Claude Code.
@@ -256,6 +256,12 @@ copy_file "$CLAUDE_DIR/statusline-command.sh" "$CLAUDE_HOME/statusline-command.s
 # Solo dispara notify-send si la terminal NO está enfocada.
 copy_file "$CLAUDE_DIR/notify-hook.sh" "$CLAUDE_HOME/notify-hook.sh" "notify-hook.sh"
 chmod +x "$CLAUDE_HOME/notify-hook.sh"
+
+# bash-guard-hook.sh: guard PreToolUse que deniega patrones Bash que el
+# harness nunca puede auto-aprobar (cd+redirección, expansiones $var),
+# con feedback para que el modelo reescriba el comando sin prompt manual.
+copy_file "$CLAUDE_DIR/bash-guard-hook.sh" "$CLAUDE_HOME/bash-guard-hook.sh" "bash-guard-hook.sh"
+chmod +x "$CLAUDE_HOME/bash-guard-hook.sh"
 
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
@@ -355,6 +361,7 @@ echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}                → @import al rep
 echo -e "    ${YELLOW}~/.claude/settings.json${NC}            → merge JSON (repo manda, claves locales únicas se preservan)"
 echo -e "    ${YELLOW}~/.claude/statusline-command.sh${NC}    → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/notify-hook.sh${NC}           → copiado del repo (notificación inteligente)"
+echo -e "    ${YELLOW}~/.claude/bash-guard-hook.sh${NC}       → copiado del repo (guard PreToolUse de Bash)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
 

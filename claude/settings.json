@@ -92,6 +92,17 @@
     "command": "bash /home/ivan/.claude/statusline-command.sh"
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/ivan/.claude/bash-guard-hook.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
