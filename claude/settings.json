@@ -87,6 +87,7 @@
     ]
   },
   "model": "opus",
+  "outputStyle": "jarvis",
   "statusLine": {
     "type": "command",
     "command": "bash /home/ivan/.claude/statusline-command.sh"
