@@ -32,5 +32,3 @@
 - Pass absolute paths to tools (`rg <path>`, `grep -r <path>`, `git -C <path>`) instead of `cd dir && cmd` — `cd` combined with file redirections (e.g. `2>/dev/null`) always forces manual approval, even when the `cd` path is absolute; if `cd` is unavoidable (`./gradlew`), avoid file redirections in that command
 - Don't use `for`/`while` loops in commands — the loop variable ("Contains simple_expansion") can never be auto-allowed and always forces a manual prompt (a bare `$var` in an allowlisted command is fine); pass globs directly as arguments (`grep -H <pattern> <glob1> <glob2>`) or use the Grep tool
 - Don't spawn `python3 -c`/`awk` one-liners for trivial aggregations — compute them yourself from the command output
-
-@RTK.md

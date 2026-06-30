@@ -23,7 +23,6 @@
       "Bash(npx *)",
       "Bash(yarn *)",
       "Bash(pnpm *)",
-      "Bash(rtk *)",
       "Bash(composer *)",
       "Bash(php *)",
       "Bash(symfony console *)",
