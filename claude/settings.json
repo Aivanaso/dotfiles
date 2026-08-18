@@ -71,9 +71,9 @@
       "Read(.env.production)",
       "Read(credentials/*)",
       "Read(secrets/*)",
-      "Read(.ssh/*)",
-      "Read(*.pem)",
-      "Read(*.key)"
+      "Read(~/.ssh/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
     ],
     "ask": [
       "Bash(git push*)",
@@ -85,7 +85,6 @@
       "Bash(sudo *)"
     ]
   },
-  "model": "opus",
   "outputStyle": "laconico",
   "statusLine": {
     "type": "command",
