@@ -1,0 +1,42 @@
+{
+  "model": "sonnet",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Write(~/Proyectos/**)", "Edit(~/Proyectos/**)", "Glob", "Grep",
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git add*)", "Bash(git checkout*)",
+      "Bash(git branch*)", "Bash(git log*)", "Bash(git stash*)", "Bash(git show*)",
+      "Bash(git fetch*)", "Bash(git merge*)", "Bash(git commit*)", "Bash(git rev-parse*)",
+      "Bash(git ls-files*)",
+      "Bash(npm *)", "Bash(npx *)", "Bash(yarn *)", "Bash(pnpm *)",
+      "Bash(composer *)", "Bash(php *)", "Bash(jest *)", "Bash(vitest *)", "Bash(phpunit *)",
+      "Bash(make *)", "Bash(ls *)", "Bash(mkdir *)", "Bash(cp *)", "Bash(mv *)",
+      "Bash(which *)", "Bash(find *)", "Bash(rg *)", "Bash(grep *)", "Bash(tree *)",
+      "Bash(echo *)", "Bash(tail *)", "Bash(head *)", "Bash(wc *)", "Bash(sort *)", "Bash(uniq *)",
+      "Bash(cat package.json)", "Bash(cat composer.json)", "Bash(cat tsconfig.json)"
+    ],
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(git push*)",
+      "Bash(rm -rf*)",
+      "Bash(cat .env*)",
+      "Bash(cat *credentials*)", "Bash(cat *secret*)", "Bash(cat *.pem)", "Bash(cat *.key)",
+      "Bash(* .env*)", "Bash(*/.env*)", "Bash(*.credentials.json*)", "Bash(*~/.claude*)",
+      "Bash(*.ssh/*)", "Bash(*id_rsa*)",
+      "Bash(*.pem*)", "Bash(*.key)", "Bash(*.key *)",
+      "Read(.env)", "Read(.env.*)",
+      "Read(credentials/*)", "Read(secrets/*)",
+      "Read(~/.ssh/**)", "Read(**/*.pem)", "Read(**/*.key)",
+      "Read(~/.claude/**)", "Read(~/.claude-headless/**)",
+      "Write(~/.claude-headless/**)", "Edit(~/.claude-headless/**)",
+      "Write(~/.claude/**)", "Edit(~/.claude/**)",
+      "Write(~/.local/bin/**)", "Edit(~/.local/bin/**)",
+      "Write(~/Proyectos/dotfiles/**)", "Edit(~/Proyectos/dotfiles/**)",
+      "Write(~/.ssh/**)", "Edit(~/.ssh/**)",
+      "Write(~/.bashrc)", "Edit(~/.bashrc)",
+      "Write(~/.zshrc)", "Edit(~/.zshrc)",
+      "Write(~/.bash_profile)", "Edit(~/.bash_profile)",
+      "Write(~/.profile)", "Edit(~/.profile)"
+    ]
+  }
+}
