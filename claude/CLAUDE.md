@@ -1,15 +1,24 @@
 # Core Rules
 
-## Philosophy
+## Communication
 
-> **CONCEPTS > CODE** — Understand first, implement second.
+Target reader: a competent engineer who does not know *this* domain. Neither a beginner
+nor a specialist in it.
 
-- Strong fundamentals: SOLID, design patterns, clean code
-- Teach to fish, don't just hand over the fish (but without being condescending)
-- Pragmatism over dogma — rules can be broken if you know why
-- Readable code > cleverly optimized code
+- Name a technical term once, then define it in plain words in the same sentence
+- At most one unexplained term per paragraph
+- Lead with the observable effect ("what this changes for you"), then the mechanism — and
+  only if asked for it
+- At most one analogy per response, only for structure that can't be seen. Never chain them
+- Teach to fish rather than hand over the fish — without being condescending
+- These rules govern word choice. Length and format are the active output style's business
 
 ## Code
+
+> **CONCEPTS > CODE** — understand first, implement second.
+
+Strong fundamentals (SOLID, design patterns, clean code), pragmatism over dogma — a rule can
+be broken if you know why — and readable code over cleverly optimized code.
 
 1. **Composition over inheritance** — whenever possible
 2. **Strict typing** — `strict: true` in TypeScript, `declare(strict_types=1)` in PHP
@@ -26,9 +35,36 @@
 - Atomic commits: one commit, one logical change
 - Descriptive branches: `feat/user-auth`, `fix/login-redirect`, `refactor/api-client`
 
+## Tools on this machine
+
+Installed by this dotfiles repo. Listed only where they beat the default tool.
+
+**Search ladder** — the same three steps for content (`rg`) and for filenames (`fd`):
+
+1. `rg <pattern>` / `fd <fragment>` — fast, and `fd` matches any fragment of the name
+   without needing `find -exec`
+2. Zero results inside a repo? Retry with `rg -uu` / `fd -u`. Both skip hidden files **and**
+   anything the gitignore covers, and the global gitignore here hides `.claude/`,
+   `.ai-team/`, `.agents/`, `docs/` and `memorias-ivan/` — the agent working directories
+3. Binary missing? Only then fall back to `grep -r` / `find`. On Ubuntu `fd` may be
+   installed under the name `fdfind`
+
+Never fall back to `find`/`grep` because a search came back empty. That hides the ignore
+filter instead of lifting it, and an empty result is sometimes the true answer. Fall back
+only when the binary isn't there.
+
+`jq` for reading and transforming JSON.
+
+Don't reach for `bat`, `eza`, `fzf`, `zoxide` or `tldr`: they colorize, paginate or need a
+terminal to sit in. They're for the human at the keyboard, not for tool output.
+
 ## Shell
 
-- Prefer `rg`/`grep -r --include` over `find -exec` — `-exec` executes commands and can never be auto-allowed, so it always triggers a permission prompt
-- Pass absolute paths to tools (`rg <path>`, `grep -r <path>`, `git -C <path>`) instead of `cd dir && cmd` — `cd` combined with file redirections (e.g. `2>/dev/null`) always forces manual approval, even when the `cd` path is absolute; if `cd` is unavoidable (`./gradlew`), avoid file redirections in that command
-- Don't use `for`/`while` loops in commands — the loop variable ("Contains simple_expansion") can never be auto-allowed and always forces a manual prompt (a bare `$var` in an allowlisted command is fine); pass globs directly as arguments (`grep -H <pattern> <glob1> <glob2>`) or use the Grep tool
-- Don't spawn `python3 -c`/`awk` one-liners for trivial aggregations — compute them yourself from the command output
+A PreToolUse guard this repo installs (`claude/bash-guard-hook.sh`) denies two command
+shapes outright, so write around them:
+
+- Never combine `cd` with a redirection (`>`, `2>`, `<`). Pass absolute paths to the tool
+  instead — `rg <path>`, `git -C <path>`. If `cd` is unavoidable (`./gradlew`), drop every
+  redirection from that command
+- No `for`/`while` loops over shell variables. Pass the paths or globs directly as arguments
+  in a single command, or use the Grep/Glob tools
