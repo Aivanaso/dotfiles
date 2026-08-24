@@ -85,7 +85,7 @@
       "Bash(sudo *)"
     ]
   },
-  "outputStyle": "laconico",
+  "outputStyle": "jarvis",
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline-command.sh\""
