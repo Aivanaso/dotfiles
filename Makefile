@@ -22,7 +22,7 @@ recovery:  ## Configurar resiliencia del sistema (zram, earlyoom, sysrq)
 claude:  ## Configurar Claude Code + Cursor
 	bash $(DOTFILES_DIR)/scripts/install_claude.sh
 
-git:  ## Enlazar .gitconfig y configurar datos personales
+git:  ## Enlazar .gitconfig, gitignore.global y configurar datos personales
 	@if [ -L "$(HOME)/.gitconfig" ] && [ "$$(readlink -f "$(HOME)/.gitconfig")" = "$$(readlink -f "$(DOTFILES_DIR)/git/.gitconfig")" ]; then \
 		echo "\033[1;33m↔  .gitconfig ya está enlazado — skip\033[0m"; \
 	else \
@@ -33,6 +33,17 @@ git:  ## Enlazar .gitconfig y configurar datos personales
 		fi; \
 		ln -sf "$(DOTFILES_DIR)/git/.gitconfig" "$(HOME)/.gitconfig"; \
 		echo "\033[0;32m✅ .gitconfig enlazado\033[0m"; \
+	fi
+	@if [ -L "$(HOME)/.gitignore" ] && [ "$$(readlink -f "$(HOME)/.gitignore")" = "$$(readlink -f "$(DOTFILES_DIR)/git/gitignore.global")" ]; then \
+		echo "\033[1;33m↔  .gitignore ya está enlazado — skip\033[0m"; \
+	else \
+		if [ -e "$(HOME)/.gitignore" ] || [ -L "$(HOME)/.gitignore" ]; then \
+			BACKUP="$(HOME)/.gitignore.bak.$$(date +%Y%m%d%H%M%S)"; \
+			echo "\033[1;33m📦 Backup de .gitignore → $$BACKUP\033[0m"; \
+			mv "$(HOME)/.gitignore" "$$BACKUP"; \
+		fi; \
+		ln -sf "$(DOTFILES_DIR)/git/gitignore.global" "$(HOME)/.gitignore"; \
+		echo "\033[0;32m✅ .gitignore (gitignore.global) enlazado\033[0m"; \
 	fi
 	@if [ ! -f "$(HOME)/.gitconfig.local" ]; then \
 		echo "\033[1;33m👤 Configurando datos personales de Git...\033[0m"; \
