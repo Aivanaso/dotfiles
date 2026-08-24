@@ -1,4 +1,4 @@
-.PHONY: all help shell packages source claude git starship recovery fonts
+.PHONY: all help shell packages source claude git starship recovery fonts kitty
 
 DOTFILES_DIR := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 
@@ -10,7 +10,7 @@ help:  ## Mostrar ayuda
 packages:  ## Instalar paquetes del sistema + Docker + Starship
 	bash $(DOTFILES_DIR)/scripts/install_packages.sh
 
-source:  ## Instalar FZF y FNM desde source
+source:  ## Instalar FZF, FNM y Kitty desde source (FNM y Kitty opcionales)
 	bash $(DOTFILES_DIR)/scripts/install_from_source.sh
 
 fonts:  ## Instalar JetBrains Mono Nerd Font
@@ -67,6 +67,20 @@ starship:  ## Enlazar starship.toml
 		fi; \
 		ln -sf "$(DOTFILES_DIR)/config/starship.toml" "$(HOME)/.config/starship.toml"; \
 		echo "\033[0;32m✅ starship.toml enlazado\033[0m"; \
+	fi
+
+kitty:  ## Enlazar config/kitty/kitty.conf (opt-in — instala kitty con `make source`)
+	@mkdir -p "$(HOME)/.config/kitty"
+	@if [ -L "$(HOME)/.config/kitty/kitty.conf" ] && [ "$$(readlink -f "$(HOME)/.config/kitty/kitty.conf")" = "$$(readlink -f "$(DOTFILES_DIR)/config/kitty/kitty.conf")" ]; then \
+		echo "\033[1;33m↔  kitty.conf ya está enlazado — skip\033[0m"; \
+	else \
+		if [ -e "$(HOME)/.config/kitty/kitty.conf" ] || [ -L "$(HOME)/.config/kitty/kitty.conf" ]; then \
+			BACKUP="$(HOME)/.config/kitty/kitty.conf.bak.$$(date +%Y%m%d%H%M%S)"; \
+			echo "\033[1;33m📦 Backup de kitty.conf → $$BACKUP\033[0m"; \
+			mv "$(HOME)/.config/kitty/kitty.conf" "$$BACKUP"; \
+		fi; \
+		ln -sf "$(DOTFILES_DIR)/config/kitty/kitty.conf" "$(HOME)/.config/kitty/kitty.conf"; \
+		echo "\033[0;32m✅ kitty.conf enlazado\033[0m"; \
 	fi
 
 shell:  ## Instalar el punto de entrada único de shell en ~/.bashrc

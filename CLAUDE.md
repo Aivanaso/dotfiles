@@ -10,7 +10,7 @@ This is a personal dotfiles repository for managing shell configurations, develo
 - **shell/** - Runtime shell functions, aliases, exports, and prompt
 - **claude/** - Claude Code and Cursor configuration (persona, skills, permissions, output styles)
 - **git/** - Git global configuration
-- **config/** - Application configs (Starship prompt)
+- **config/** - Application configs (Starship prompt, Kitty terminal)
 - **Makefile** - Orchestrator for all installation targets
 
 ## Key Commands
@@ -24,18 +24,20 @@ make all
 # Or run individual targets
 make packages    # System packages + Docker + Starship
 make fonts       # JetBrains Mono Nerd Font
-make source      # FZF + FNM from source
+make source      # FZF + FNM + Kitty from source (FNM/Kitty opt-in)
 make claude      # Claude Code + Cursor config
 make recovery    # OOM protection: zram, earlyoom, sysrq, swappiness
 make git         # Symlink .gitconfig + gitignore.global
 make starship    # Symlink starship.toml
 make shell       # Install the single shell/index.sh source line in ~/.bashrc
+make kitty       # Symlink Kitty config (opt-in — install the binary first via `make source`)
 make help        # List all targets
 ```
 
 **install_from_source.sh:**
 - Installs/updates FZF (fuzzy finder) from source to `~/.fzf`, with `--no-update-rc` on both the initial install and the update path so it never writes to the user's `.bashrc`/`.zshrc` — sourcing `~/.fzf.bash` is left to `shell/` (a separate phase)
 - Prompts for optional FNM (Fast Node Manager) installation
+- Prompts for optional Kitty (terminal emulator) installation — official installer plus the desktop integration (`.desktop` files, `~/.local/bin` symlinks) that installer does not do on its own; Konsole stays installed either way
 - Is idempotent (safe to run multiple times)
 - Uses `set -e` so exits on any error
 
@@ -104,8 +106,18 @@ Purpose: Automate installation of development tools from source
 2. Check if `fnm` command exists
 3. If not: curl install script from fnm.vercel.app and execute
 
+**Kitty Installation Flow (opt-in, same pattern as FNM):**
+1. Interactive prompt asking user if they want Kitty
+2. Check if `kitty` command exists — skip the binary install (idempotent) if already installed
+3. If not: run the official installer hardened with `--fail --location --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 60` (same convention as `install_fonts.sh`) and `launch=n` — the installer's own default is `launch=y`, which auto-execs the freshly downloaded binary as soon as the download finishes; `launch=n` is kitty's own documented flag for scripted/unattended installs. It drops the app under `~/.local/kitty.app/` but does NOT put the binary on `PATH` or register desktop integration. A precondition check aborts with a `RED` error (mirroring `install_fonts.sh:200-203`) if `~/.local/kitty.app/bin/kitty` is not present afterwards, instead of planting dangling symlinks
+4. Symlink `kitty`/`kitten` into `~/.local/bin/` and copy `kitty.desktop`/`kitty-open.desktop` into `~/.local/share/applications/` — each pre-existing target is backed up with a `.bak.<timestamp>` first — rewriting their `TryExec=`/`Icon=`/`Exec=` lines to the absolute install path (the steps kitty's own docs document as manual after a binary install) — `update-desktop-database` is refreshed afterwards if present
+5. Desktop integration is idempotent independently of the `command -v kitty` gate that guards the binary install: it checks for the `.desktop` files' own presence, so a prior run that installed the binary but was interrupted before finishing desktop integration self-repairs on the next invocation instead of being skipped forever
+6. Config itself is a separate step: `make kitty` (see `config/kitty/` below) — this script only installs the binary
+7. Konsole is never touched — it stays installed as Kubuntu's default; switching the system default terminal is a manual step in Systemsettings
+8. Success banner tells the user to open a new shell session so `kitty` resolves on `PATH` (same convention as the `bat`→`batcat` symlink, see below)
+
 **Key characteristics:**
-- Color-coded output (GREEN for success, YELLOW for info)
+- Color-coded output (GREEN for success, YELLOW for info, RED for the Kitty precondition-check failure)
 - Comments are bilingual (Spanish/English)
 - Exits on any error (`set -e`)
 
@@ -299,6 +311,17 @@ Purpose: Starship prompt configuration — minimal and functional
 **Modules enabled:** directory, git_branch, git_status, nodejs, docker_context, cmd_duration, character
 **Modules disabled:** php, python, ruby, java, golang, rust (used inside Docker containers)
 
+### config/kitty/
+
+Purpose: Kitty terminal configuration — symlinked to `~/.config/kitty/kitty.conf` by `make kitty`. The config side is fully isolated from `make all`: it is only linked by an explicit `make kitty` run, never a dependency of `all`. The binary side is not as isolated — `make all` runs `make source` (`scripts/install_from_source.sh`), and that script does reach the interactive Kitty prompt; it is consent-gated (nothing installs on an empty answer or `n`), but `make all` genuinely reaches it. Konsole remains Kubuntu's installed default; Dolphin's embedded terminal panel (F4) is a KonsolePart and is not replaceable by Kitty, and switching the system-wide default terminal is a manual step in Systemsettings, never done by this repo's scripts.
+
+**`config/kitty/kitty.conf`:**
+- **Font:** `JetBrainsMono Nerd Font Mono`, the fontconfig family produced by `make fonts` (`scripts/install_fonts.sh`) — depends on that target having run first, or Kitty falls back to a different font and Nerd Font glyphs may render as tofu/squares
+- **`symbol_map`:** explicitly maps Nerd Font Private Use Area glyph ranges (through `U+e0d7`, matching Nerd Fonts v3.x's Powerline extra-symbols block) to that same font family instead of relying on fontconfig's fallback resolution — the fallback path is what caused square glyphs in Konsole; forcing the mapping makes glyph resolution deterministic
+- **Security:** `clipboard_control` explicitly drops kitty's default unconfirmed clipboard-write permission (verified against kitty's own docs) — only confirmed reads remain, and only for OSC 52 escapes from a program running inside the terminal, never for the user's own copy/paste shortcuts; `update_check_interval 0` disables kitty's own phone-home update check (this repo's installer owns the binary version); `allow_hyperlinks` is declared explicit at its default (`yes`) instead of left implicit
+- **Theme:** Tokyo Night, derived from the same palette `FZF_DEFAULT_OPTS` already uses (`shell/exports.sh:60`) so the terminal and fzf share one color scheme — background, foreground, cursor, selection and all 16 ANSI colors
+- Generous scrollback, audio bell disabled; tab/split keybindings declared explicitly (window navigation on `ctrl+shift+up`/`down` rather than `ctrl+shift+[`/`]`, which need AltGr on a Spanish keyboard; explicit `ctrl+shift+d`/`ctrl+shift+s` bindings for vertical/horizontal splits, since `enabled_layouts splits` alone gives no way to pick the axis); `confirm_os_window_close` set to avoid accidentally closing a window that has multiple tabs/panels open
+
 ### git/.gitconfig
 
 Purpose: Global git configuration — symlinked to `~/.gitconfig`
@@ -394,10 +417,11 @@ Purpose: Orchestrate all installation targets
 - `git` — Symlink `.gitconfig` and `gitignore.global` (→ `~/.gitignore`) with backup
 - `starship` — Symlink `starship.toml` with backup
 - `shell` — Run `install_shell.sh` (single `shell/index.sh` source line in `~/.bashrc`)
+- `kitty` — Symlink `config/kitty/kitty.conf` with backup (opt-in; not a dependency of `all` — install the binary first via `make source`)
 - `help` — List targets with descriptions
 
 **Key characteristics:**
-- Symlink targets (git, starship) use inline logic matching `install_claude.sh` patterns
+- Symlink targets (git, starship, kitty) use inline logic matching `install_claude.sh` patterns
 - All targets are `.PHONY`
 - `help` auto-generates from `##` comments
 
