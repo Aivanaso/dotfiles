@@ -34,7 +34,7 @@ make help        # List all targets
 ```
 
 **install_from_source.sh:**
-- Installs/updates FZF (fuzzy finder) from source to `~/.fzf`
+- Installs/updates FZF (fuzzy finder) from source to `~/.fzf`, with `--no-update-rc` on both the initial install and the update path so it never writes to the user's `.bashrc`/`.zshrc` — sourcing `~/.fzf.bash` is left to `shell/` (a separate phase)
 - Prompts for optional FNM (Fast Node Manager) installation
 - Is idempotent (safe to run multiple times)
 - Uses `set -e` so exits on any error
@@ -89,8 +89,10 @@ Purpose: Automate installation of development tools from source
 
 **FZF Installation Flow:**
 1. Check if `~/.fzf` directory exists
-2. If not: shallow clone from GitHub, run `~/.fzf/install --all --no-fish`
-3. If exists: pull updates and reinstall
+2. If not: shallow clone from GitHub, run `~/.fzf/install --all --no-fish --no-update-rc`
+3. If exists: pull updates and reinstall with the same flags
+
+`--no-update-rc` on both branches means the installer never writes to `~/.bashrc`/`~/.zshrc` — sourcing `~/.fzf.bash` (key bindings, completion) is left to the shell-config phase (`shell/`), not this script.
 
 **FNM Installation Flow:**
 1. Interactive prompt asking user if they want FNM
@@ -254,7 +256,11 @@ Purpose: Global git configuration — symlinked to `~/.gitconfig`
 
 Purpose: Install system packages, Docker, and Starship
 
-**apt packages:** build-essential, curl, wget, git, jq, htop, unzip, zip, ripgrep, bat, eza, fd-find
+**apt packages:** build-essential, curl, wget, git, jq, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig
+
+`fontconfig` is required so `fc-cache` exists before `make all` reaches the `fonts` target (`Makefile`'s second prerequisite, right after `packages`) — `install_fonts.sh` aborts if `fc-cache` is missing, which would otherwise break the whole bootstrap on a minimal base before `source`, `claude`, `git`, `starship` and `shell` ever run.
+
+**bat → batcat symlink:** Ubuntu's `bat` apt package installs its binary as `batcat` (name collision with `bacula-console`). After installing packages, the script symlinks `~/.local/bin/bat` → `/usr/bin/batcat` — idempotent (`ln -sf`) and skipped if `bat` already resolves in the `PATH` (never overwrites a real `bat` binary). The success message does not claim `bat` already works: on a fresh install `~/.local/bin` may not be on the `PATH` yet, so it also tells the user to open a new shell session (see `shell/exports.sh`).
 
 **Docker flow (optional, interactive):**
 1. Check if `docker` command exists

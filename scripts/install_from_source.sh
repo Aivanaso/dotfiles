@@ -16,16 +16,18 @@ if [ ! -d "$HOME/.fzf" ]; then
     git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 
     # Instalar sin preguntas interactivas
-    # --all: habilita todo (key bindings, completion, actualizar shell config)
+    # --all: habilita todo (key bindings, completion)
     # --no-bash: solo si NO quieres bash (en tu caso sí lo quieres por si acaso)
     # --no-zsh: solo si NO quieres zsh
     # --no-fish: no tienes fish
-    ~/.fzf/install --all --no-fish
+    # --no-update-rc: no tocar .bashrc/.zshrc — el sourcing se gestiona a mano
+    #                 (ver shell/ en este mismo repo)
+    ~/.fzf/install --all --no-fish --no-update-rc
 
     echo -e "${GREEN}✅ fzf instalado${NC}"
 else
     echo -e "${YELLOW}fzf ya está instalado. Actualizando...${NC}"
-    cd ~/.fzf && git pull && ./install --all --no-fish
+    cd ~/.fzf && git pull && ./install --all --no-fish --no-update-rc
     echo -e "${GREEN}✅ fzf actualizado${NC}"
 fi
 

@@ -28,6 +28,9 @@ PACKAGES=(
     bat
     eza
     fd-find
+    zoxide
+    tldr
+    fontconfig
 )
 
 echo -e "${YELLOW}Actualizando repositorios...${NC}"
@@ -37,6 +40,25 @@ echo -e "${YELLOW}Instalando paquetes...${NC}"
 sudo apt-get install -y "${PACKAGES[@]}"
 
 echo -e "${GREEN}✅ Paquetes base instalados${NC}"
+
+# ============================================
+# Symlink bat -> batcat
+# ============================================
+# Ubuntu renombra el binario de "bat" a "batcat" por colisión de nombre con
+# bacula-console. Enlazamos ~/.local/bin/bat -> batcat para poder usar "bat"
+# directamente, sin pisar un "bat" real ya presente en el PATH.
+echo ""
+mkdir -p "$HOME/.local/bin"
+if command -v bat &> /dev/null; then
+    echo -e "${YELLOW}↔  'bat' ya resuelve en el PATH ($(command -v bat)) — no se crea el symlink${NC}"
+elif [ -x /usr/bin/batcat ]; then
+    ln -sf "/usr/bin/batcat" "$HOME/.local/bin/bat"
+    echo -e "${GREEN}✅ Symlink creado: ~/.local/bin/bat -> /usr/bin/batcat${NC}"
+    echo -e "${YELLOW}⚠  'bat' resolverá solo si ~/.local/bin ya está en tu PATH — en una instalación"
+    echo -e "   nueva puede no estarlo hasta que abras una sesión de shell nueva (ver shell/exports.sh)${NC}"
+else
+    echo -e "${YELLOW}⚠  /usr/bin/batcat no encontrado — no se crea el symlink${NC}"
+fi
 
 # ============================================
 # Docker (opcional, interactivo)
