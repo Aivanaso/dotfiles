@@ -350,6 +350,8 @@ Purpose: Install system packages, Docker, and Starship
 
 **bat → batcat symlink:** Ubuntu's `bat` apt package installs its binary as `batcat` (name collision with `bacula-console`). After installing packages, the script symlinks `~/.local/bin/bat` → `/usr/bin/batcat` — idempotent (`ln -sf`) and skipped if `bat` already resolves in the `PATH` (never overwrites a real `bat` binary). The success message does not claim `bat` already works: on a fresh install `~/.local/bin` may not be on the `PATH` yet, so it also tells the user to open a new shell session (see `shell/exports.sh`).
 
+**fd → fdfind symlink:** same name-collision pattern as `bat`/`batcat` — Ubuntu's `fd-find` apt package installs its binary as `fdfind`. Immediately after the `bat` block, the script symlinks `~/.local/bin/fd` → `/usr/bin/fdfind` with the identical shape: idempotent (`ln -sf`), skipped if `fd` already resolves in the `PATH` (never overwrites a real `fd` binary), same `PATH`-not-yet-updated warning.
+
 **Docker flow (optional, interactive):**
 1. Check if `docker` command exists
 2. Add Docker official GPG key and repository
