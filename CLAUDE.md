@@ -338,9 +338,7 @@ Purpose: Global git configuration — symlinked to `~/.gitconfig`
 
 Purpose: Global gitignore, symlinked to `~/.gitignore` — the `core.excludesfile` target `git/.gitconfig` declares but that isn't itself versioned. Without it, a fresh machine silently ignores nothing via that setting, and directories like `.claude/` or `.ai-team/` show up as untracked in every repo.
 
-**Contents (7 patterns):** `docs/`, `.claude/`, `.vscode/`, `memorias-ivan/`, `.agents/`, `skills-lock.json`, `.ai-team/`
-
-**`docs/` is unanchored on purpose, and machine-wide on purpose:** once linked as `~/.gitignore` (`core.excludesfile`), it hides any untracked `docs/` directory in *every* repository on the machine, not only this one — including a work repo that legitimately versions its own `docs/`. This repo's own `docs/specs/*` stays visible only because those files are already tracked (gitignore never untracks). This is the user's existing, already-live configuration; the scope and its trade-off are documented here deliberately rather than narrowed, so the breadth is a conscious choice, not an oversight.
+**Contents (6 patterns):** `.claude/`, `.vscode/`, `memorias-ivan/`, `.agents/`, `skills-lock.json`, `.ai-team/`
 
 ### scripts/install_packages.sh
 
