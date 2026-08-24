@@ -88,7 +88,7 @@
   "outputStyle": "laconico",
   "statusLine": {
     "type": "command",
-    "command": "bash /home/ivan/.claude/statusline-command.sh"
+    "command": "bash \"$HOME/.claude/statusline-command.sh\""
   },
   "hooks": {
     "PreToolUse": [
@@ -97,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/ivan/.claude/bash-guard-hook.sh"
+            "command": "bash \"$HOME/.claude/bash-guard-hook.sh\""
           }
         ]
       }
@@ -107,7 +107,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Turno terminado' normal /usr/share/sounds/freedesktop/stereo/complete.oga"
+            "command": "bash \"$HOME/.claude/notify-hook.sh\" 'Claude Code' 'Turno terminado' normal /usr/share/sounds/freedesktop/stereo/complete.oga"
           }
         ]
       }
@@ -117,7 +117,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/ivan/.claude/notify-hook.sh 'Claude Code' 'Necesita tu atención' critical /usr/share/sounds/freedesktop/stereo/message.oga"
+            "command": "bash \"$HOME/.claude/notify-hook.sh\" 'Claude Code' 'Necesita tu atención' critical /usr/share/sounds/freedesktop/stereo/message.oga"
           }
         ]
       }
