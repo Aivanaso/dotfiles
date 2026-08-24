@@ -58,12 +58,5 @@ starship:  ## Enlazar starship.toml
 		echo "\033[0;32m✅ starship.toml enlazado\033[0m"; \
 	fi
 
-shell:  ## Mostrar cómo cargar shell config
-	@echo ""
-	@echo "Añade a tu .bashrc o .zshrc:"
-	@echo ""
-	@echo "  source $(DOTFILES_DIR)/shell/exports.sh"
-	@echo "  source $(DOTFILES_DIR)/shell/aliases.sh"
-	@echo "  source $(DOTFILES_DIR)/shell/functions.sh"
-	@echo "  source $(DOTFILES_DIR)/shell/prompt.sh"
-	@echo ""
+shell:  ## Instalar el punto de entrada único de shell en ~/.bashrc
+	bash $(DOTFILES_DIR)/scripts/install_shell.sh

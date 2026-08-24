@@ -27,9 +27,9 @@ make fonts       # JetBrains Mono Nerd Font
 make source      # FZF + FNM from source
 make claude      # Claude Code + Cursor config
 make recovery    # OOM protection: zram, earlyoom, sysrq, swappiness
-make git         # Symlink .gitconfig
+make git         # Symlink .gitconfig + gitignore.global
 make starship    # Symlink starship.toml
-make shell       # Show shell sourcing instructions
+make shell       # Install the single shell/index.sh source line in ~/.bashrc
 make help        # List all targets
 ```
 
@@ -63,23 +63,28 @@ See `claude/headless/` under Architecture for what the profile isolates and why.
 
 ### Shell Configuration
 
-All shell files must be sourced in your `.bashrc` or `.zshrc`:
+Bash-only — this repo has one code path, no per-shell branches. `make shell` (`scripts/install_shell.sh`) installs a single delimited block in `~/.bashrc` that sources the one entry point:
 
 ```bash
-source ~/Proyectos/dotfiles/shell/exports.sh
-source ~/Proyectos/dotfiles/shell/aliases.sh
-source ~/Proyectos/dotfiles/shell/functions.sh
-source ~/Proyectos/dotfiles/shell/prompt.sh
+# >>> dotfiles >>>
+[ -f "/path/to/dotfiles/shell/index.sh" ] && source "/path/to/dotfiles/shell/index.sh"
+# <<< dotfiles <<<
 ```
 
-Available functions:
-- `install-deb <file.deb>` - Installs a .deb package, fixes dependencies, and removes the file on success
+`shell/index.sh` loads everything else, in a fixed order, each step guarded by file existence or `command -v`: `exports.sh` → `~/.fzf.bash` (if present) → `aliases.sh` → `functions.sh` → `options.sh` → `prompt.sh` → `local.sh`. `local.sh` is always last, so machine-specific config in `~/.dotfiles.local` (see `shell/local.sh` below) can override anything the repo sets.
+
+Available functions (see `shell/functions.sh`):
+- `install-deb <file.deb>` — installs a .deb package, fixes dependencies, and removes the file on success
+- `find-in-files <text>` (alias `fif`) — `rg` content search piped into `fzf` with a `bat`/`cat` preview, opens the pick at the exact line in `$EDITOR`
+- `git-log-interactive [git-log-args]` (alias `glf`) — `git log --oneline` piped into `fzf` with a commit preview; Enter opens the full commit, Ctrl-Y copies the hash (Wayland `wl-copy` or X11 `xclip`, whichever is present)
 
 Key aliases (see `shell/aliases.sh` for full list):
 - **Git:** `gs`, `ga`, `gc`, `gcm`, `gp`, `gpl`, `gd`, `gl`, `gco`, `gcb`
 - **Docker:** `d`, `dc`, `dcu`, `dcd`, `dcl`, `dcr`
 - **Node/pnpm:** `p`, `pi`, `pd`, `pb`, `pt`, `px`
-- **System:** `ll`, `la`, `lt` (eza with ls fallback), `..`, `...`, `cls`
+- **System:** `ll`, `la`, `lt` (eza with ls fallback), `cat` (bat/batcat fallback), `help` (tldr), `fif`, `glf`, `..`, `...`, `cls`
+
+**Machine-local config (`~/.dotfiles.local`):** anything that must NOT be versioned — SDKMAN init, `JAVA_HOME`, `OLLAMA_MODELS`, a corporate proxy, a company npm registry — goes in `~/.dotfiles.local` on that machine, sourced by `shell/local.sh` if the file exists (no error if it doesn't). This is the repo's only sanctioned per-machine drift point; everything that applies to every machine belongs in the repo itself. Before sourcing it — and `~/.fzf.bash` in `shell/index.sh` — a shared `_dotfiles_safe_source` helper (defined in `shell/index.sh`, `unset -f` at the end) checks the file is owned by the current user (`[ -O ]`) and not group/other-writable (`stat -c %a` masked against `022`); either check failing prints a warning to stderr and skips sourcing instead of running code of uncertain ownership on every interactive shell.
 
 ## Architecture
 
@@ -192,9 +197,45 @@ Purpose: Install Claude Code (interactive + headless) and Cursor configuration
 - Idempotent — safe to run multiple times
 - Backs up existing files before replacing (import/merge/copy helpers each take their own backup before overwriting)
 
+### shell/index.sh
+
+Purpose: Single entry point for the whole shell configuration — the file `~/.bashrc` actually sources (via the delimited block `scripts/install_shell.sh` installs)
+
+**Load order (fixed, each step guarded by file existence or `command -v`):**
+1. `exports.sh` — environment variables, PATH
+2. `~/.fzf.bash` (if present) — fzf key bindings/completion; `scripts/install_from_source.sh` installs fzf with `--no-update-rc`, so this repo is the only thing that sources it
+3. `aliases.sh`
+4. `functions.sh`
+5. `options.sh` — bash interactive `shopt`s and history settings
+6. `prompt.sh` — Starship
+7. `local.sh` — always LAST, so `~/.dotfiles.local` can override anything above
+
+**Key characteristics:**
+- Resolves its own directory via `${BASH_SOURCE[0]}` — if that `cd` fails (repo dir removed/unreadable while a shell starts, or the file was executed instead of sourced), it fails loudly (`echo ... >&2` + `return 1`/`exit 1`) instead of silently degrading to a shell with no aliases, no functions and no PATH additions
+- Bash-only by design — no per-shell branching; the repo has one code path
+- Defines `_dotfiles_safe_source` (ownership + group/other-write check before sourcing an auto-loaded, non-repo file) once, used for both `~/.fzf.bash` here and `~/.dotfiles.local` in `shell/local.sh`; `unset -f` at the end alongside `_DOTFILES_SHELL_DIR`
+
+### shell/options.sh
+
+Purpose: Bash interactive options (`shopt`) and history configuration
+
+**Key characteristics:**
+- Guards itself with `[[ $- == *i* ]] || return 0` — these settings only make sense in an interactive shell, and a freshly-created rc (`scripts/install_shell.sh` on a machine with none yet) carries no Debian-style early-return to rely on instead
+- `shopt -s autocd globstar cdspell dirspell histappend checkwinsize` — the first four are off by default on Debian/Ubuntu and replace zsh conveniences (`autocd`, `**` recursive globbing, `cd`/directory-name typo correction)
+- `HISTSIZE=10000`, `HISTFILESIZE=20000`, `HISTCONTROL=ignoreboth:erasedups` — `erasedups` deduplicates only the in-memory history list of the *current* session; combined with `histappend` (which appends to `HISTFILE` rather than rewriting it), duplicates already on disk from previous sessions are NOT removed — the comment in the file describes this accurately rather than claiming persisted deduplication
+
+### shell/local.sh
+
+Purpose: Hook for machine-local configuration that must never be versioned
+
+**Key characteristics:**
+- Sources `~/.dotfiles.local` via `_dotfiles_safe_source` (defined in `shell/index.sh`) if it exists; does not fail if it doesn't; skips sourcing (warning on stderr) if the file isn't owned by the current user or is group/other-writable
+- Documents in-file what belongs there (SDKMAN, `JAVA_HOME`, `OLLAMA_MODELS`, corporate proxy, private npm registry) vs. what belongs in the repo instead
+- Loaded LAST by `shell/index.sh` so it can override any repo default
+
 ### shell/functions.sh
 
-Purpose: Provide utility functions for system administration
+Purpose: Provide utility functions for system administration and interactive search/navigation
 
 **install-deb function:**
 1. Validates argument provided
@@ -202,6 +243,16 @@ Purpose: Provide utility functions for system administration
 3. Runs `sudo dpkg -i <file>`
 4. On success: removes the .deb file and runs `apt-get install -f` to fix dependencies
 5. On failure: preserves the .deb file and returns error
+
+**find-in-files function (alias `fif`):**
+- `rg --line-number --no-heading --color=always --smart-case` piped into `fzf`, previewed with `bat`/`batcat` (falls back to `cat` if neither is present) highlighted at the matched line
+- Enter becomes `$EDITOR +<line> <file>` (defaults to `vim`)
+- Errors clearly if `rg` or `fzf` is missing, or if called with no search text
+
+**git-log-interactive function (alias `glf`):**
+- `git log --oneline --color=always "$@"` (forwards any extra args, e.g. a path or `--author`) piped into `fzf` with a `git show` preview
+- Enter opens the full commit in `less -R`; Ctrl-Y copies the hash — via `wl-copy` (Wayland) or `xclip` (X11), whichever is present; the binding is omitted if neither is
+- Errors clearly if not run inside a git repository
 
 **Design notes:**
 - Designed to be extensible - add more functions to this file
@@ -214,6 +265,9 @@ Purpose: Shell aliases grouped by category (Git, Docker, Node/pnpm, System)
 
 **Key characteristics:**
 - eza aliases with automatic fallback to ls/tree if eza is not installed
+- `cat` aliased to `bat`, falling back to `batcat` (Ubuntu's package name for the binary), guarded by `command -v` on both names — no alias at all if neither is installed
+- `help` aliased to `tldr` if installed
+- `fif`/`glf` — aliases for the `find-in-files`/`git-log-interactive` functions in `shell/functions.sh`
 - Navigation shortcuts (`..`, `...`, `....`)
 - Sourced at shell startup, not executed as a script
 
@@ -222,9 +276,13 @@ Purpose: Shell aliases grouped by category (Git, Docker, Node/pnpm, System)
 Purpose: Environment variables and PATH configuration
 
 **Key characteristics:**
-- `_add_to_path` helper prevents duplicate PATH entries and checks directory exists
-- Sets EDITOR, VISUAL, LANG, LC_ALL, FZF_DEFAULT_OPTS
-- PATH additions: `~/.local/bin`, composer, npm-global, cargo, go
+- `_add_to_path` helper prevents duplicate PATH entries and checks directory exists — it PREPENDS, so the LAST call wins highest precedence; `~/.local/bin` is deliberately the last call so it outranks every third-party package manager's bin directory (composer, npm-global, cargo, go, fnm)
+- Sets EDITOR, VISUAL, FZF_DEFAULT_OPTS
+- **Locale guard:** `LANG`/`LC_ALL` are only exported as `es_ES.UTF-8` when `locale -a` confirms that locale is actually generated on the machine — forcing an ungenerated locale produces perl/locale warnings on every command, which is likely on a machine that hasn't generated Spanish locales (e.g. a work machine). If `es_ES.UTF-8` isn't available, it falls back to `C.UTF-8` (present on every modern glibc, no `locale-gen` needed) or `en_US.UTF-8` if that one exists instead — only `LANG` is set in the fallback, `LC_ALL` stays unset so per-category overrides still work. Without this fallback a machine with neither locale would inherit `C`/`POSIX`, which breaks this repo's own emoji/box-drawing output (`scripts/install_*.sh`, `shell/functions.sh`)
+- PATH additions: composer, npm-global, cargo, go, `~/.local/share/fnm`, `~/.local/bin` (in that order — see above)
+- **fnm:** `eval "$(fnm env)"` if the `fnm` binary resolves (absorbed from what used to be hand-written directly in the user's `~/.bashrc`, and therefore missing on any new machine)
+- **zoxide:** `eval "$(zoxide init bash)"` if installed
+- **cargo:** sources `~/.cargo/env` if the file exists
 
 ### shell/prompt.sh
 
@@ -249,8 +307,17 @@ Purpose: Global git configuration — symlinked to `~/.gitconfig`
 - `pull.rebase = true`, `push.autoSetupRemote = true`, `fetch.prune = true`
 - `rerere.enabled = true` for automatic conflict resolution memory
 - `merge.conflictstyle = diff3`
+- `core.excludesfile = ~/.gitignore` — the target for `git/gitignore.global` below
 - Useful aliases: `lg`, `amend`, `undo`, `wip`, `st`, `last`
 - Placeholder user name/email — must be changed after install
+
+### git/gitignore.global
+
+Purpose: Global gitignore, symlinked to `~/.gitignore` — the `core.excludesfile` target `git/.gitconfig` declares but that isn't itself versioned. Without it, a fresh machine silently ignores nothing via that setting, and directories like `.claude/` or `.ai-team/` show up as untracked in every repo.
+
+**Contents (7 patterns):** `docs/`, `.claude/`, `.vscode/`, `memorias-ivan/`, `.agents/`, `skills-lock.json`, `.ai-team/`
+
+**`docs/` is unanchored on purpose, and machine-wide on purpose:** once linked as `~/.gitignore` (`core.excludesfile`), it hides any untracked `docs/` directory in *every* repository on the machine, not only this one — including a work repo that legitimately versions its own `docs/`. This repo's own `docs/specs/*` stays visible only because those files are already tracked (gitignore never untracks). This is the user's existing, already-live configuration; the scope and its trade-off are documented here deliberately rather than narrowed, so the breadth is a conscious choice, not an oversight.
 
 ### scripts/install_packages.sh
 
@@ -289,6 +356,30 @@ Purpose: Configure system resilience against memory-pressure hangs (OOM thrashin
 - NOT part of `make all` — invasive (changes kernel memory policy); run explicitly with `make recovery`
 - zram (priority 100) is used before the existing disk swapfile (priority -2)
 
+### scripts/install_shell.sh
+
+Purpose: Install the single `source shell/index.sh` line into the user's `~/.bashrc`, replacing whatever ad hoc sourcing was there before
+
+**Flow:**
+1. Read the target rc file (`$DOTFILES_RC`, default `~/.bashrc`) — created empty if it doesn't exist yet (new machine); remembers this so it never backs up a file it just created itself
+2. **Pre-scan marker balance BEFORE touching anything:** walks the file counting `# >>> dotfiles >>>` / `# <<< dotfiles <<<` as a depth (0 or 1, never nested); if a start marker is missing its end (truncated rc, half-finished manual edit, interrupted previous run) the file is NOT touched at all — the script aborts with a non-zero exit and a `$RED` error naming the offending line number. An unterminated marker is never treated as "the block legitimately extends to EOF": that ambiguity used to delete everything after it silently while still reporting success
+3. Scrub legacy sourcing found anywhere in the file, outside the delimited block — anchored to THIS repo's own resolved path (`$DOTFILES_DIR`), plus its `$HOME/...` and `~/...` literal-text forms, never to any project whose path merely happens to end in `shell/{exports,aliases,functions,prompt}.sh`: standalone `source`/`.` lines (with an optional trailing `# comment`), the same paths wrapped in a 3-line `if [ -f ... ]; then source ...; fi` guard, and the one-line `[ -f X ] && source X` form — plus any previously-installed delimited block itself, so it can be rewritten fresh. A single `#` comment immediately preceding a removed construct is also dropped, but ONLY when it would otherwise become an orphan (the line right after the construct is blank or EOF) — left alone otherwise
+4. Collapse consecutive blank lines, but ONLY in the gaps a removal in this run just opened — a run of blank lines with zero legacy content anywhere near it is never touched, so re-running never rewrites the user's own spacing choices elsewhere in the file
+5. Compute the desired final content (a separator blank line is added before the fresh block only if the kept content doesn't already end in one) and compare it to the current file; if they already match, skip entirely (no backup, no write) — mirrors the skip-if-already-linked pattern the `Makefile`'s `git`/`starship` targets use
+6. Otherwise: resolve the real write target via `readlink -f` (so a symlinked rc is preserved as a symlink — only its target's content changes) and capture its current permission mode; timestamped backup of the current rc file (skipped entirely if the rc was created fresh by this same run — step 1); prune `<rc>.bak.*` backups older than 7 days (same style as `scripts/claude-headless.sh`'s credential-backup pruning); write the desired content to a temp file in the same directory, `chmod` it to the captured mode, then `mv -f` onto the resolved target — never a direct `>` redirect, so an interrupted write can't leave a partially-truncated rc:
+   ```
+   # >>> dotfiles >>>
+   [ -f "<abs-path-to-repo>/shell/index.sh" ] && source "<abs-path-to-repo>/shell/index.sh"
+   # <<< dotfiles <<<
+   ```
+7. If the rc contains a line matching "MUST BE AT THE END" (e.g. SDKMAN's own init comment), print a `$YELLOW` warning that the new block landed below it and may need reordering — the script never reorders the file itself, only warns
+
+**Key characteristics:**
+- `DOTFILES_RC` env override makes the script testable without touching the real `~/.bashrc` (default `~/.bashrc`)
+- Idempotent: running it twice leaves the rc file byte-for-byte identical, with exactly one delimited block
+- Reports the number of legacy lines removed on success, instead of rewriting silently
+- Same patterns as the other install scripts: `set -e`, colors, emojis, timestamped backup before any destructive write
+
 ### Makefile
 
 Purpose: Orchestrate all installation targets
@@ -300,9 +391,9 @@ Purpose: Orchestrate all installation targets
 - `source` — Run `install_from_source.sh`
 - `claude` — Run `install_claude.sh`
 - `recovery` — Run `install_system_recovery.sh` (OOM protection; not in `all`)
-- `git` — Symlink `.gitconfig` with backup
+- `git` — Symlink `.gitconfig` and `gitignore.global` (→ `~/.gitignore`) with backup
 - `starship` — Symlink `starship.toml` with backup
-- `shell` — Print shell sourcing instructions
+- `shell` — Run `install_shell.sh` (single `shell/index.sh` source line in `~/.bashrc`)
 - `help` — List targets with descriptions
 
 **Key characteristics:**

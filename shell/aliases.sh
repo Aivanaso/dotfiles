@@ -61,6 +61,20 @@ else
     alias lt='tree -L 2'
 fi
 
+# bat con fallback a cat — Ubuntu instala el binario como `batcat`
+# (colisión de nombre con bacula-console); scripts/install_packages.sh
+# ya crea ~/.local/bin/bat como symlink, así que se comprueba primero
+if command -v bat &> /dev/null; then
+    alias cat='bat'
+elif command -v batcat &> /dev/null; then
+    alias cat='batcat'
+fi
+
+# tldr en vez de man/help resumido
+if command -v tldr &> /dev/null; then
+    alias help='tldr'
+fi
+
 # Navegación
 alias ..='cd ..'
 alias ...='cd ../..'
@@ -69,3 +83,7 @@ alias ....='cd ../../..'
 # Utilidades
 alias mkd='mkdir -p'
 alias cls='clear'
+
+# Búsqueda y navegación interactivas (funciones definidas en functions.sh)
+alias fif='find-in-files'
+alias glf='git-log-interactive'
