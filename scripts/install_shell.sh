@@ -140,6 +140,92 @@ if ! BAD_LINE="$(_scan_marker_balance)"; then
 fi
 
 # ============================================
+# Tras eliminar un bloque legacy, decide si el comentario `#` (o el
+# bloque contiguo de varias líneas de comentario) que quedó justo
+# encima en KEPT se retira junto con él. $removed_line es la línea del
+# bloque ya eliminado que hacía el sourcing (identifica qué shell/*.sh
+# introducía); $next_idx es el índice en RC_LINES de la primera línea
+# que sobrevive tras la eliminación. La decisión es TODO-O-NADA sobre
+# el bloque de comentario completo — nunca se retira solo la última
+# línea de una cabecera multilínea, dejando el resto colgando sobre
+# código ajeno.
+# ============================================
+_retire_orphan_comment_block() {
+    local removed_line="$1" next_idx="$2"
+    [ "${#KEPT[@]}" -gt 0 ] || return 0
+    # `#([^!].*)?$` cubre también la línea de solo `#` (separador vacío
+    # dentro de un bloque de comentario), que `#[^!]` no casaba y que
+    # partía el bloque dejando la cabecera colgando. El `[^!]` sigue
+    # excluyendo un shebang.
+    [[ "${KEPT[-1]}" =~ ^[[:space:]]*#([^!].*)?$ ]] || return 0
+
+    # Recoger, de abajo arriba, el bloque contiguo de comentario que
+    # precede — hasta la primera línea que ya no sea un comentario `#`.
+    local -i block_start=${#KEPT[@]}
+    while [ "$block_start" -gt 0 ] && [[ "${KEPT[$((block_start - 1))]}" =~ ^[[:space:]]*#([^!].*)?$ ]]; do
+        block_start=$((block_start - 1))
+    done
+
+    # El test textual se calcula SIEMPRE, porque las dos ramas de abajo lo
+    # necesitan: la de código-debajo para decidir si retira algo, y la de
+    # huérfano inequívoco para decidir CUÁNTO retira.
+    local text_match=0
+    local should_drop=0
+    if [ "$next_idx" -ge "$TOTAL" ] || [ -z "${RC_LINES[$next_idx]}" ]; then
+        # Huérfano sin ambigüedad: no sobrevive nada visible debajo (EOF
+        # o línea en blanco) — el caso original (rev F-6 / F-103). Se
+        # retira, pero el bloque ENTERO solo cuando el texto lo respalda:
+        # sin respaldo cae únicamente la última línea, que es el
+        # comportamiento previo. Así una cabecera de sección que quede
+        # justo encima no se pierde por arrastre.
+        should_drop=1
+    else
+        # Le sigue código: SOLO se retira si el bloque de comentario
+        # completo nombra (en español o inglés) el fichero que el bloque
+        # eliminado sourceaba Y ADEMÁS usa un verbo de carga en ese
+        # mismo bloque — evidencia positiva de que describía ESE bloque
+        # eliminado, nunca la línea que sobrevive debajo. Sin las dos
+        # cosas a la vez se deja intacto ("ante la duda, se deja"): un
+        # comentario que solo menciona la palabra genérica (p. ej.
+        # "Exports y variables de entorno de esta maquina") bien podría
+        # estar describiendo la línea `export` que queda, no el bloque
+        # retirado.
+        local stem=""
+        case "$removed_line" in
+            *exports.sh*)   stem="export" ;;
+            *aliases.sh*)   stem="alias" ;;
+            *functions.sh*) stem="func" ;;   # cubre "functions" y "funciones"
+            *prompt.sh*)    stem="prompt" ;;
+        esac
+        if [ -n "$stem" ]; then
+            local block_text="" j
+            for ((j = block_start; j < ${#KEPT[@]}; j++)); do
+                block_text+="${KEPT[$j]} "
+            done
+            block_text="${block_text,,}"
+            if [[ "$block_text" == *"$stem"* ]] && [[ "$block_text" =~ (cargar|carga|load|source) ]]; then
+                text_match=1
+                should_drop=1
+            fi
+        fi
+    fi
+
+    # Rama de huérfano inequívoco sin respaldo textual: se limita a la
+    # última línea del comentario, no al bloque contiguo entero.
+    if [ "$should_drop" -eq 1 ] && [ "$text_match" -eq 0 ]; then
+        block_start=$((${#KEPT[@]} - 1))
+    fi
+
+    if [ "$should_drop" -eq 1 ]; then
+        local k
+        for ((k = block_start; k < ${#KEPT[@]}; k++)); do
+            echo -e "${YELLOW}✂️  Comentario huérfano retirado: ${KEPT[$k]}${NC}"
+        done
+        KEPT=("${KEPT[@]:0:block_start}")
+    fi
+}
+
+# ============================================
 # Construir el contenido "limpio": el rc actual sin el bloque delimitado
 # de una instalación previa (se reescribe a continuación) ni el sourcing
 # legacy suelto/envuelto en guard de ESTE repo
@@ -148,7 +234,6 @@ KEPT=()
 i=0
 in_dotfiles_block=0
 just_removed=0
-REMOVED_LINES=0
 while [ "$i" -lt "$TOTAL" ]; do
     line="${RC_LINES[$i]}"
 
@@ -157,7 +242,6 @@ while [ "$i" -lt "$TOTAL" ]; do
             in_dotfiles_block=0
             just_removed=1
         fi
-        REMOVED_LINES=$((REMOVED_LINES + 1))
         i=$((i + 1))
         continue
     fi
@@ -165,7 +249,6 @@ while [ "$i" -lt "$TOTAL" ]; do
     if [ "$line" = "$BLOCK_START" ]; then
         in_dotfiles_block=1
         just_removed=1
-        REMOVED_LINES=$((REMOVED_LINES + 1))
         i=$((i + 1))
         continue
     fi
@@ -175,37 +258,23 @@ while [ "$i" -lt "$TOTAL" ]; do
         && _is_legacy_source_line "${RC_LINES[$((i + 1))]}" \
         && _is_fi_line "${RC_LINES[$((i + 2))]}"; then
         i=$((i + 3))
-        REMOVED_LINES=$((REMOVED_LINES + 3))
         just_removed=1
-        # Comentario huérfano: solo se retira si queda inmediatamente
-        # huérfano tras esta eliminación (la línea siguiente al guard
-        # es blanca o EOF) — ante la duda, se deja.
-        if [ "${#KEPT[@]}" -gt 0 ] && [[ "${KEPT[-1]}" =~ ^[[:space:]]*\#[^!] ]] \
-            && { [ "$i" -ge "$TOTAL" ] || [ -z "${RC_LINES[$i]}" ]; }; then
-            unset 'KEPT[-1]'
-        fi
+        # Comentario huérfano: ver _retire_orphan_comment_block.
+        _retire_orphan_comment_block "$line" "$i"
         continue
     fi
 
     if _is_legacy_oneliner_guard "$line"; then
         i=$((i + 1))
-        REMOVED_LINES=$((REMOVED_LINES + 1))
         just_removed=1
-        if [ "${#KEPT[@]}" -gt 0 ] && [[ "${KEPT[-1]}" =~ ^[[:space:]]*\#[^!] ]] \
-            && { [ "$i" -ge "$TOTAL" ] || [ -z "${RC_LINES[$i]}" ]; }; then
-            unset 'KEPT[-1]'
-        fi
+        _retire_orphan_comment_block "$line" "$i"
         continue
     fi
 
     if _is_legacy_source_line "$line"; then
         i=$((i + 1))
-        REMOVED_LINES=$((REMOVED_LINES + 1))
         just_removed=1
-        if [ "${#KEPT[@]}" -gt 0 ] && [[ "${KEPT[-1]}" =~ ^[[:space:]]*\#[^!] ]] \
-            && { [ "$i" -ge "$TOTAL" ] || [ -z "${RC_LINES[$i]}" ]; }; then
-            unset 'KEPT[-1]'
-        fi
+        _retire_orphan_comment_block "$line" "$i"
         continue
     fi
 
@@ -224,6 +293,13 @@ while [ "$i" -lt "$TOTAL" ]; do
         just_removed=0
     fi
 done
+
+# Toda línea retirada — bloque gestionado previo, sourcing legacy,
+# comentario huérfano o blanca colapsada — deja de estar en KEPT: contar
+# la diferencia evita subcontar (o sobrecontar) frente a lo que el diff
+# real quita, sin necesidad de mantener un contador por cada rama de
+# arriba.
+REMOVED_LINES=$((TOTAL - ${#KEPT[@]}))
 
 # ============================================
 # Contenido deseado: lo limpio + un bloque fresco. El separador en
