@@ -276,70 +276,6 @@ echo ""
 echo -e "${GREEN}✅ Claude Code configurado${NC}"
 
 # ============================================
-# Claude Headless — perfil aislado para cron/automatización
-# ============================================
-#
-# CLAUDE_CONFIG_DIR reemplaza POR COMPLETO el user scope de Claude Code
-# (settings.json, CLAUDE.md, hooks, credenciales): con esta variable
-# exportada nada de ~/.claude se lee. Este perfil vive en
-# ~/.claude-headless y se instala aparte del interactivo — sin CLAUDE.md
-# (sin memoria global, es deliberado), sin hooks, sin statusLine.
-
-echo ""
-echo -e "${GREEN}=== Claude Headless ===${NC}"
-
-HEADLESS_HOME="$HOME/.claude-headless"
-mkdir -p "$HEADLESS_HOME/logs"
-chmod 700 "$HEADLESS_HOME" "$HEADLESS_HOME/logs"
-
-# settings.json: reemplazo COMPLETO (no merge) — el repo es la única
-# fuente de verdad de este perfil. A diferencia del interactivo, un
-# `merge_json_repo_wins` aquí preservaría por exclusión cualquier clave
-# no declarada por el repo (p.ej. un `hooks.PreToolUse` plantado por una
-# ejecución comprometida), que sobreviviría a cada reinstall. Con copia
-# total, cada `make claude` resetea el perfil al contenido del repo —
-# ediciones locales al perfil headless se pierden, es deliberado.
-copy_file "$CLAUDE_DIR/headless/settings.json" "$HEADLESS_HOME/settings.json" "headless settings.json"
-chmod 600 "$HEADLESS_HOME/settings.json"
-
-# Credenciales: symlink a las del perfil interactivo (login se hace una
-# sola vez, con 'claude' normal).
-HEADLESS_CREDS="$HEADLESS_HOME/.credentials.json"
-if [[ -f "$CLAUDE_HOME/.credentials.json" ]]; then
-    if [[ -e "$HEADLESS_CREDS" ]] && [[ -d "$HEADLESS_CREDS" ]]; then
-        # Directorio real O symlink a un directorio — ln -sf (sin -n)
-        # dereferencia y crearía el enlace DENTRO del directorio en vez
-        # de sustituirlo. Se comprueba con -e + -d ANTES que -L para que
-        # un symlink-a-directorio caiga aquí y nunca en la rama de abajo
-        # ("ya es un symlink"), que anidaría el enlace silenciosamente.
-        echo -e "${RED}❌ $HEADLESS_CREDS es un directorio (o un symlink a uno) — no se enlaza (revísalo a mano)${NC}"
-    elif [[ -L "$HEADLESS_CREDS" ]]; then
-        # Symlink a un fichero (el caso directorio ya se descartó arriba)
-        # — sobrescribirlo es idempotente, sin backup. -n evita que ln
-        # dereferencie si el destino cambiase a directorio entre checks.
-        ln -sfn "$CLAUDE_HOME/.credentials.json" "$HEADLESS_CREDS"
-        echo -e "${GREEN}✅ .credentials.json enlazado desde el perfil interactivo${NC}"
-    else
-        if [[ -e "$HEADLESS_CREDS" ]]; then
-            # Fichero real (p.ej. login headless independiente) — backup
-            # con timestamp antes de enlazar, mismo convenio que el resto
-            # de helpers (create_symlink, merge_json_repo_wins, copy_file).
-            backup="${HEADLESS_CREDS}.bak.$(date +%Y%m%d%H%M%S)"
-            echo -e "${YELLOW}📦 Backup de .credentials.json existente → $backup${NC}"
-            mv "$HEADLESS_CREDS" "$backup"
-        fi
-        ln -sfn "$CLAUDE_HOME/.credentials.json" "$HEADLESS_CREDS"
-        echo -e "${GREEN}✅ .credentials.json enlazado desde el perfil interactivo${NC}"
-    fi
-else
-    echo -e "${YELLOW}⚠  No hay ~/.claude/.credentials.json — haz login con 'claude' primero${NC}"
-    echo -e "${YELLOW}   y vuelve a ejecutar 'make claude' para enlazar las credenciales${NC}"
-fi
-
-echo ""
-echo -e "${GREEN}✅ Claude Headless configurado${NC}"
-
-# ============================================
 # Cursor — Generación de reglas .mdc
 # ============================================
 
@@ -428,12 +364,6 @@ echo -e "    ${YELLOW}~/.claude/notify-hook.sh${NC}           → copiado del re
 echo -e "    ${YELLOW}~/.claude/bash-guard-hook.sh${NC}       → copiado del repo (guard PreToolUse de Bash)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
-echo ""
-echo -e "  Claude Headless (cron/automatización):"
-echo -e "    ${YELLOW}~/.claude-headless/${NC}                → chmod 700 (perfil + logs/)"
-echo -e "    ${YELLOW}~/.claude-headless/settings.json${NC}   → copia completa (repo es fuente de verdad, sin merge)"
-echo -e "    ${YELLOW}~/.claude-headless/.credentials.json${NC} → symlink al perfil interactivo (backup si había fichero real)"
-echo -e "    ${YELLOW}~/.claude-headless/logs/${NC}           → logs de scripts/claude-headless.sh"
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
