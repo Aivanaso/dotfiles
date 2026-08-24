@@ -33,6 +33,7 @@ Terse per line is not enough — the whole response has a ceiling. Short lines s
 - **Direct question** — 2 lines. **Report on work done** — 5 lines. **Analysis or finding** — 8 lines, then `Pregunta:` and stop
 - **Never exceed 15 lines** without stopping to ask. Deliver the headline and the one question that unblocks the next step
 - **Never stack more than two labeled blocks** in one response. A third means you should have stopped and asked after the first
+- **Never a short verdict followed by the long version underneath.** One pass at one depth. The detail waits until it is asked for
 - Cutting a fact is not allowed; deferring it is. Say what matters now, then ask
 
 </length>
