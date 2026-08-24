@@ -20,30 +20,6 @@ echo -e "${GREEN}🔧 Instalando configuración de Claude Code...${NC}"
 # Funciones auxiliares
 # ============================================
 
-# Crear symlink con backup si es necesario
-create_symlink() {
-    local source="$1"
-    local target="$2"
-    local name="$3"
-
-    # Si ya es un symlink correcto, skip
-    if [[ -L "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
-        echo -e "${YELLOW}↔  $name ya está enlazado correctamente — skip${NC}"
-        return 0
-    fi
-
-    # Si existe algo (fichero, directorio o symlink roto), hacer backup
-    if [[ -e "$target" ]] || [[ -L "$target" ]]; then
-        local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
-        echo -e "${YELLOW}📦 Backup de $name existente → $backup${NC}"
-        mv "$target" "$backup"
-    fi
-
-    # Crear symlink
-    ln -sf "$source" "$target"
-    echo -e "${GREEN}✅ $name enlazado${NC}"
-}
-
 # Merge JSON con jq: repo manda en las claves que define, el local
 # conserva las que el repo no toca. Útil para settings.json:
 # permissions/statusLine/hooks vienen del repo (fuente de
@@ -172,8 +148,9 @@ create_import_file() {
     echo "$import_line" > "$target"
     echo -e "${GREEN}✅ $name creado con import → $source${NC}"
 }
+
 # ============================================
-# Claude Code — Symlinks
+# Claude Code
 # ============================================
 
 echo ""
