@@ -1,8 +1,8 @@
-.PHONY: all help shell packages source claude git starship recovery
+.PHONY: all help shell packages source claude git starship recovery fonts
 
 DOTFILES_DIR := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 
-all: packages source claude git starship shell  ## Instalar todo
+all: packages fonts source claude git starship shell  ## Instalar todo
 
 help:  ## Mostrar ayuda
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -12,6 +12,9 @@ packages:  ## Instalar paquetes del sistema + Docker + Starship
 
 source:  ## Instalar FZF y FNM desde source
 	bash $(DOTFILES_DIR)/scripts/install_from_source.sh
+
+fonts:  ## Instalar JetBrains Mono Nerd Font
+	bash $(DOTFILES_DIR)/scripts/install_fonts.sh
 
 recovery:  ## Configurar resiliencia del sistema (zram, earlyoom, sysrq)
 	bash $(DOTFILES_DIR)/scripts/install_system_recovery.sh

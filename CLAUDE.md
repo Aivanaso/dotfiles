@@ -23,6 +23,7 @@ make all
 
 # Or run individual targets
 make packages    # System packages + Docker + Starship
+make fonts       # JetBrains Mono Nerd Font
 make source      # FZF + FNM from source
 make claude      # Claude Code + Cursor config
 make recovery    # OOM protection: zram, earlyoom, sysrq, swappiness
@@ -37,6 +38,12 @@ make help        # List all targets
 - Prompts for optional FNM (Fast Node Manager) installation
 - Is idempotent (safe to run multiple times)
 - Uses `set -e` so exits on any error
+
+**install_fonts.sh:**
+- Downloads JetBrains Mono Nerd Font's zip from `ryanoasis/nerd-fonts` and verifies it before extracting anything (fails closed — a mismatch aborts with a `RED` error and a non-zero exit, never installs unverified). For the version pinned by default, verification is against a SHA-256 constant fixed in the script itself (`EXPECTED_SHA256_PINNED`, next to `NERD_FONT_PINNED_VERSION`) rather than the release's own `SHA-256.txt` — the checksums file is downloaded from the same origin and over the same channel as the zip, so it only catches corruption/truncation, not a TLS-intercepting proxy serving a tampered zip and a matching tampered checksums file together; a hash pinned in the repo can't be altered by that proxy. `NERD_FONT_PINNED_VERSION`/`EXPECTED_SHA256_PINNED` must be updated together whenever the pinned version is bumped (comment above the constant documents how to recompute it). Overriding `NERD_FONT_VERSION` to a different tag falls back to downloading and checking against that release's `SHA-256.txt`, with a `YELLOW` warning that this path does not cover the MITM case. Extraction happens in a temporary directory and is validated there (expected `.ttf` present, `unzip` exit code checked) before it replaces `~/.local/share/fonts/JetBrainsMonoNerdFont/` — a failed download, checksum or extraction never touches the previous, working installation. The font cache is refreshed with `fc-cache -f` only after the swap
+- Idempotent — the marker encodes the installed version, so a version bump reinstalls automatically; `NERD_FONT_FORCE=1` forces reinstalling the same version too. The skip check also requires the expected font file to still be present, so a partially-deleted install self-repairs instead of reporting a false "already installed". The version marker is written only after `fc-cache` succeeds, so a `fc-cache` failure is never recorded as a completed install (and gets retried on the next run) — and the destination directory is only ever wiped after the new extraction is already validated in the temp directory, never before, so files removed/renamed between releases don't linger as orphans without risking the previous install on failure
+- Release version pinned in the script by default; override with `NERD_FONT_VERSION` (tag from `ryanoasis/nerd-fonts` releases) — see the SHA-256 note above for what that changes about integrity verification
+- Validates `curl`, `unzip`, `sha256sum` and `fc-cache` are present before acting, with a clear error otherwise (`curl`/`unzip`/`fontconfig` are all in `install_packages.sh`'s `PACKAGES` array)
 
 **install_claude.sh:**
 - Installs the interactive Claude Code profile to `~/.claude/`: CLAUDE.md via an `@import` file (so apps that write to `~/.claude/CLAUDE.md` don't dirty the repo), `settings.json` via a `jq` merge where the repo wins declared keys and local-only runtime keys are preserved, and the hook/statusline scripts plus `output-styles/` copied (not symlinked)
@@ -94,6 +101,25 @@ Purpose: Automate installation of development tools from source
 - Color-coded output (GREEN for success, YELLOW for info)
 - Comments are bilingual (Spanish/English)
 - Exits on any error (`set -e`)
+
+### scripts/install_fonts.sh
+
+Purpose: Install JetBrains Mono Nerd Font for terminal/editor glyph support (icons, ligature-adjacent symbols used by Starship and terminal prompts)
+
+**Flow:**
+1. Validate `curl`, `unzip`, `sha256sum`, and `fc-cache` are present — clear `RED` error and `exit 1` if any is missing (`curl`/`unzip` are already in `install_packages.sh`'s `PACKAGES` array; `fc-cache` comes from the `fontconfig` package, also in that array)
+2. Idempotency check: skip if a version marker (`.nerd-font-version`) already exists under `~/.local/share/fonts/JetBrainsMonoNerdFont/` **and matches** `NERD_FONT_VERSION` **and** the expected regular-weight `.ttf` is still present — so bumping the pinned version over an existing install triggers a reinstall instead of a silent no-op, and a partially-deleted install (marker present, font file gone) self-repairs instead of reporting a false "already installed"; `NERD_FONT_FORCE=1` also forces reinstall of the same version
+3. Download the release zip from `ryanoasis/nerd-fonts` (tag from `NERD_FONT_VERSION`, defaulted in-script) to a `mktemp -d` directory, cleaned up via `trap ... EXIT` — `--retry`/`--connect-timeout`/`--speed-limit`/`--speed-time` so a hung connection cannot block `make all` indefinitely; deliberately no `--max-time` on the ~130 MiB zip, since an absolute time cap would also kill a slow-but-alive connection that `--speed-limit`/`--speed-time` already tolerate, and `--retry` restarts the download from scratch (no resume)
+4. Verify the zip's SHA-256 **before** extracting anything — a mismatch is a `RED` error and a non-zero exit, nothing is decompressed, there is no "install without verifying" fallback. When `NERD_FONT_VERSION` equals the pinned default, verification is against `EXPECTED_SHA256_PINNED`, a hash constant fixed in the script — closing the MITM gap a same-origin/same-channel `SHA-256.txt` download can't close. When it's been overridden to a different tag, the script falls back to downloading and checking against that release's own `SHA-256.txt` (`YELLOW` warning that this path doesn't cover MITM)
+5. Extract only the "Mono" variant (Regular/Bold/Italic/BoldItalic — the variant recommended for terminal use, since its icon glyphs share the character cell width) plus `OFL.txt` (the release's actual license file — it does not publish a `LICENSE.txt`) into a **temporary** directory, never straight into the destination. `unzip` runs without `-q`/`-qq` (that flag silently downgrades its path-traversal-sanitization exit code from 1 to 0 on the `unzip` build this targets) and only exit code `0` is accepted — any other code, including 1 (entries sanitized for path traversal / zip-slip) or 11 (a requested pattern had no match), aborts the script; nothing is ever swallowed with a blanket fallback
+6. Assert the expected regular-weight file exists in the temp extraction (fails loudly instead of printing a false success banner) — only then wipe and replace the destination directory with the validated temp extraction, so a failed download/checksum/extraction/assert never costs the user a previously-working install
+7. Refresh the font cache with `fc-cache -f`, and only once that succeeds, write the version marker — so a `fc-cache` failure is never recorded as a completed install and gets retried on the next run
+
+**Key characteristics:**
+- Same patterns as the other install scripts: `set -e`, colors, emojis, idempotent
+- Two overridable environment variables: `NERD_FONT_VERSION` (release tag) and `NERD_FONT_FORCE` (force reinstall of the same version)
+- `NERD_FONT_PINNED_VERSION` and `EXPECTED_SHA256_PINNED` must be bumped together when the pinned release changes — the in-script comment above the constant documents how to recompute the hash
+- Never invoked automatically outside `make fonts` / `make all` — no network calls happen unless the target is explicitly run
 
 ### claude/
 
@@ -262,8 +288,9 @@ Purpose: Configure system resilience against memory-pressure hangs (OOM thrashin
 Purpose: Orchestrate all installation targets
 
 **Targets:**
-- `all` — Run everything: packages, source, claude, git, starship, shell
+- `all` — Run everything: packages, fonts, source, claude, git, starship, shell
 - `packages` — Run `install_packages.sh`
+- `fonts` — Run `install_fonts.sh` (JetBrains Mono Nerd Font)
 - `source` — Run `install_from_source.sh`
 - `claude` — Run `install_claude.sh`
 - `recovery` — Run `install_system_recovery.sh` (OOM protection; not in `all`)
