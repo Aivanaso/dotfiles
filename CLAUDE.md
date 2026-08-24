@@ -8,7 +8,7 @@ This is a personal dotfiles repository for managing shell configurations, develo
 
 - **scripts/** - Installation and setup automation
 - **shell/** - Runtime shell functions, aliases, exports, and prompt
-- **claude/** - Claude Code and Cursor configuration (persona, skills, permissions, output styles)
+- **claude/** - Claude Code configuration (global instructions, permissions, output styles)
 - **git/** - Git global configuration
 - **config/** - Application configs (Starship prompt, Kitty terminal)
 - **Makefile** - Orchestrator for all installation targets
@@ -25,7 +25,7 @@ make all
 make packages    # System packages + Docker + Starship
 make fonts       # JetBrains Mono Nerd Font
 make source      # FZF + FNM + Kitty from source (FNM/Kitty opt-in)
-make claude      # Claude Code + Cursor config
+make claude      # Claude Code config
 make recovery    # OOM protection: zram, earlyoom, sysrq, swappiness
 make git         # Symlink .gitconfig + gitignore.global
 make starship    # Symlink starship.toml
@@ -48,20 +48,10 @@ make help        # List all targets
 - Validates `curl`, `unzip`, `sha256sum` and `fc-cache` are present before acting, with a clear error otherwise (`curl`/`unzip`/`fontconfig` are all in `install_packages.sh`'s `PACKAGES` array)
 
 **install_claude.sh:**
-- Installs the interactive Claude Code profile to `~/.claude/`: CLAUDE.md via an `@import` file (so apps that write to `~/.claude/CLAUDE.md` don't dirty the repo), `settings.json` via a `jq` merge where the repo wins declared keys and local-only runtime keys are preserved, and the hook/statusline scripts plus `output-styles/` copied (not symlinked)
-- Installs the isolated headless profile to `~/.claude-headless/` (see `claude/headless/` below): `settings.json` via a full copy (repo is the sole source of truth, no merge — local edits reset on every reinstall, deliberate), `.credentials.json` symlinked from `~/.claude/.credentials.json` (a pre-existing real file is backed up first; a pre-existing directory aborts the link instead of nesting inside it), both `~/.claude-headless/` and its `logs/` set to `chmod 700`
-- Optionally generates `.mdc` rule files for Cursor in `~/.cursor/rules/`
+- Installs the Claude Code profile to `~/.claude/`: `CLAUDE.md` as a delimited block holding an `@import` to the repo's file (so the rest of that shared file survives), `settings.json` via a `jq` merge where the repo wins declared keys and local-only runtime keys are preserved, and `notify-hook.sh`/`statusline-command.sh` plus `output-styles/` copied (not symlinked)
 - Backs up existing files with `.bak` timestamp before overwriting
 - Is idempotent (safe to run multiple times)
-
-### Claude Headless (cron / automation)
-
-```bash
-# Run Claude Code non-interactively against the isolated headless profile
-scripts/claude-headless.sh [-C <workdir>] "<prompt>" [extra claude flags...]
-```
-
-See `claude/headless/` under Architecture for what the profile isolates and why.
+- **Copies, never prunes:** a file removed from the repo survives in `~/.claude/` until it's deleted by hand. `output-styles/` is the exception — `copy_directory` moves the whole destination to a backup before copying, so it does track removals
 
 ### Shell Configuration
 
@@ -140,74 +130,53 @@ Purpose: Install JetBrains Mono Nerd Font for terminal/editor glyph support (ico
 - `NERD_FONT_PINNED_VERSION` and `EXPECTED_SHA256_PINNED` must be bumped together when the pinned release changes — the in-script comment above the constant documents how to recompute the hash
 - Never invoked automatically outside `make fonts` / `make all` — no network calls happen unless the target is explicitly run
 
+
 ### claude/
 
-Purpose: Reusable configuration for Claude Code and Cursor IDE
+Purpose: the Claude Code configuration this repo owns — what any session on this machine should know, whatever project it is working in.
 
 **Structure:**
-- `CLAUDE.md` — Main persona prompt (senior architect, Spanish Spain tone, tech expertise)
-- `settings.json` — Permission rules (deny secrets, confirm git operations, allow dev tools) for the interactive profile
-- `headless/settings.json` — Permission rules for the isolated headless profile (see below)
-- `output-styles/default.md` — Response style guide (concepts first, direct answers)
-- `skills/` — Technology-specific skills:
-  - `nestjs/`, `symfony/`, `php-8/` — Backend frameworks
-  - `typescript/`, `react/`, `tailwind/` — Frontend stack
-  - `testing/` — Testing patterns (Jest, Vitest, PHPUnit)
-  - `pr-review/` — Pull request review guidelines
-  - `skill-creator/` — Meta-skill for creating new skills
+- `CLAUDE.md` — global instructions: register (how to word an explanation), code and git conventions, and the tools this repo installs
+- `settings.json` — permission rules, output style, status line and hooks
+- `output-styles/` — `arquitecto.md`, `jarvis.md` (the default) and `laconico.md`
+- `notify-hook.sh` — desktop notification on Stop/Notification, only when the terminal isn't focused
+- `statusline-command.sh` — the status line renderer
 
-**Key characteristics:**
-- Installed to `~/.claude/` (interactive) and `~/.claude-headless/` (headless) by `scripts/install_claude.sh` — see that section for the exact mechanism per file (import/merge/copy)
-- Skills use YAML frontmatter for metadata (`name`, `description`)
-- Each skill is self-contained in its directory with a `SKILL.md` file
+**Scope boundary:** this directory holds the standard AI configuration for the machine. The working protocol — ai-team, its `organic-*` skills and its agents — lives in its own repo and injects its own delimited block into `~/.claude/CLAUDE.md`. `install_import_block` is written so the two never overwrite each other.
 
-### claude/headless/ and scripts/claude-headless.sh
-
-Purpose: Isolated Claude Code profile for autonomous/unattended execution (cron, CI, scheduled agents) — separate from the interactive profile so an unattended run never *loads* personal config, hooks, or memory, and its own permission set reduces drastically (not eliminates) what it can read or execute.
-
-**Why `CLAUDE_CONFIG_DIR`:** Claude Code resolves its entire user scope — `settings.json`, `CLAUDE.md`, hooks, and credentials — from `CLAUDE_CONFIG_DIR` when it's exported, and loads nothing from `~/.claude` in that case. Pointing it at `~/.claude-headless` gives the headless profile a boundary at the config-loading layer: no interactive hooks (`notify-hook.sh`, `bash-guard-hook.sh`), no personal `CLAUDE.md`/memory (deliberate — `install_claude.sh` does not create one for this profile), and its own minimal permission set (`claude/headless/settings.json`) where risky operations (`sudo`, `git push`, `rm -rf`, `docker`, reading `~/.claude/**`, `~/.claude-headless/**` or secrets, writing to `~/.claude/**`, `~/.claude-headless/**` or `~/.local/bin/**`) are denied outright, since in `-p` mode an "ask" rule is silently denied rather than prompted.
-
-`Write`/`Edit` are allow-scoped to `~/Proyectos/**` (previously unrestricted) — the cron workdirs an unattended run targets all live there. That narrows the explicit `allow` entry, but the profile's `defaultMode` is `acceptEdits` (`claude/headless/settings.json:4`), which auto-accepts file edits that match neither an `allow` nor a `deny` rule — so the narrowed `allow` alone does not block paths outside `~/Proyectos/**`; the actual hard block for anything outside it is the explicit `deny` list, which always wins regardless of mode. That is why `~/Proyectos/dotfiles/**` is denied even though it sits inside the allowed `~/Proyectos/**` — this repo's own `shell/*.sh` files are sourced into the human's interactive shell (see Shell Configuration above), so an unattended run must never be able to write there — and why `~/.ssh/**` gets an explicit `Write`/`Edit` deny mirroring the existing `Read` deny, rather than relying on it already sitting outside `~/Proyectos/**`. Opening a tool for one task (Docker or otherwise) via `--allowedTools` on that single invocation only ever extends the *allow* side for that run — it can never remove a `deny` entry, so `~/Proyectos/dotfiles/**`, `~/.ssh/**`, `~/.claude/**`, etc. stay blocked regardless. A full default-deny inversion (allow-list only the specific paths a task needs, deny everything else) would close this more durably but is not implemented — the profile still starts from a broad `Write`/`Edit` allow narrowed by explicit denies, so a deny gap is still possible for any path this list hasn't anticipated.
-
-This is a **best-effort reduction, not a sandbox**: the Bash allow list still permits general-purpose readers (`grep`, `find`, `head`, `tail`, `rg`) that can reach the same file content the literal `cat`-shaped deny rules target — mitigated with additional mid-pattern `Bash(*...*)` denies (`*.credentials.json*`, `*~/.claude*`, `*.ssh/*`, `*id_rsa*`, `*.pem*`, `*.key`, `*.key *`, etc.), never fully closed, since the permission matcher works on command-shape, not on what the command actually reads. `*secret*` is deliberately left cat-only (`Bash(cat *secret*)` only) rather than mid-pattern like `.pem`/`.key` — a mid-pattern `*secret*` deny would also block legitimate work in the audited repo, e.g. `grep SECRET_KEY src/`; accepted residual, the `.pem`/`.key`/`.credentials.json`/`~/.claude`/`.ssh`/`id_rsa` cases don't have that false-positive risk. Hard isolation against a compromised run (one that can never read outside the profile at all) needs a container or a dedicated OS user, which this profile does not provide. Docker is deliberately absent from the allow list — an unrestricted `docker run -v $HOME:/host ...` bypasses every other deny rule in a single call; a task that genuinely needs Docker opens it per-invocation, e.g. `scripts/claude-headless.sh "..." --allowedTools "Bash(docker compose *)"`.
-
-**`scripts/claude-headless.sh`:** the wrapper that exports `CLAUDE_CONFIG_DIR` and invokes `claude -p` non-interactively. Resolves the `claude` binary robustly — `CLAUDE_BIN` env override, else `command -v claude`, else `~/.local/bin/claude`, erroring clearly if none is executable, since cron's minimal default `PATH` does not reliably include `~/.local/bin`. Validates the headless profile is installed and credentials are linked before running. Creates the log file explicitly before invoking `claude` (`mkdir -p logs/` + `touch`, both inside a subshell with a restrictive umask scoped to just that step — not a global umask, so files `claude` itself creates in the workdir get the invoking user's normal umask, not owner-only) — an unwritable log is reported as the wrapper's own error (exit 1) instead of being misattributed to `claude`'s exit code. Logs stdout+stderr (`--output-format json` by default) to `~/.claude-headless/logs/<timestamp>-<pid>.log`, preserves `claude`'s exit code, and prunes logs older than 30 days. Caps each run at `--max-turns "${CLAUDE_MAX_TURNS:-25}"` (override via `CLAUDE_MAX_TURNS`); the profile directory is overridable via `CLAUDE_HEADLESS_DIR` (default `~/.claude-headless`). Extra arguments after the prompt pass straight through to `claude` — e.g. `--model`, or `--allowedTools "Bash(docker compose *)"` to open Docker for a single task without widening the base profile. After the run, if `.credentials.json` was a symlink before invocation but no longer is one afterwards (an OAuth token refresh replaces it via atomic rename), the wrapper repairs it — but **only when the profile lives at the default `$HOME/.claude-headless` path**, since the deny rules above are anchored to that literal path and an overridden `CLAUDE_HEADLESS_DIR` would otherwise propagate credentials outside the perimeter those denies protect (the repair is skipped with a warning instead). The repair validates the refreshed file first (non-empty, `jq empty`) before propagating it onto the destination captured via `readlink -f` *before* the run (never a hardcoded `~/.claude`, so a symlink pointing elsewhere gets restored to its own target), backs up the destination first (`chmod 600`, pruned after 7 days the same way logs are) and skips the overwrite entirely if that backup fails, `chmod 600`s the copied file, and re-links with `ln -sfn`. The whole repair runs inside a function invoked with `|| true`, so no step in it — including the final `ln`— can abort the script or override `claude`'s own exit code.
-
-```bash
-# Usage
-scripts/claude-headless.sh [-C <workdir>] "<prompt>" [extra claude flags...]
-
-# Example crontab line — nightly dependency audit at 03:00
-0 3 * * * /home/ivan/Proyectos/dotfiles/scripts/claude-headless.sh -C /home/ivan/Proyectos/some-repo "Audit dependencies for known CVEs and report findings"
-```
+**What is deliberately NOT here:**
+- **Skills.** Stack skills (nestjs, react, symfony…) go per project with `npx autoskills`, so they only load where they apply. Global skills live directly under `~/.claude/skills/` and are managed by whoever installs them
+- **A headless profile.** There was one (`~/.claude-headless/` plus a `claude -p` wrapper). It went unused — one log file and no crontab entry — because the same need is met by exporting `CLAUDE_CONFIG_DIR` at the point of use
+- **Cursor rules.** `install_claude.sh` used to generate `.mdc` files under `~/.cursor/rules/` from the repo's skills. Both went when Cursor stopped being used
+- **A PreToolUse Bash guard.** `bash-guard-hook.sh` denied `cd` combined with a redirection, and `for`/`while` loops over variables, so that permission prompts wouldn't stall a delegated task. Under auto mode the classifier never prompts — it approves or denies — so the failure it prevented cannot happen, while its false positives were real: it rejected any `git commit -m "$(...)"` whose message contained the word "for" or "while"
+- **`autoMode.environment`.** The classifier's trusted-infrastructure list describes one machine — its repos, its sensitive directories — so it belongs in each machine's own `~/.claude/settings.json`. The `jq` merge preserves it by exclusion for as long as this repo doesn't declare the key
 
 ### scripts/install_claude.sh
 
-Purpose: Install Claude Code (interactive + headless) and Cursor configuration
+Purpose: install the Claude Code configuration into `~/.claude/`
 
-**Claude Code flow (interactive, `~/.claude/`):**
+**Flow:**
 1. Create `~/.claude/` if it doesn't exist
-2. `CLAUDE.md` → real file containing `@<path-to-repo-CLAUDE.md>` (an import, not a symlink), so apps that write to `~/.claude/CLAUDE.md` don't dirty the repo
-3. `settings.json` → `jq`-merged: the repo wins the keys it declares (permissions/statusLine/hooks); local-only runtime keys apps write (e.g. `enabledPlugins`) are preserved by exclusion
-4. `statusline-command.sh`, `notify-hook.sh`, `bash-guard-hook.sh` → copied (not symlinked), so local edits by external apps don't dirty the repo; hook scripts get `chmod +x`
-5. `output-styles/` → copied recursively (not symlinked), same rationale
-6. `skills/` is NOT managed here — global skills live directly under `~/.claude/skills/`; per-project skills use `npx autoskills`
+2. `CLAUDE.md` → `install_import_block` writes a delimited block holding an import of the repo's file:
 
-**Claude Headless flow (`~/.claude-headless/`, see `claude/headless/` above):**
-1. Create `~/.claude-headless/logs/`, then `chmod 700` both `~/.claude-headless/` and `logs/`
-2. `settings.json` → full copy (not a merge) from `claude/headless/settings.json`, with a timestamped backup of any prior local file — the repo is the sole source of truth for this profile; a local edit (or a key planted by a compromised run) is reset on the next `make claude` instead of surviving by exclusion
-3. `.credentials.json` → symlinked from `~/.claude/.credentials.json` if present: idempotent `ln -sfn` when the target is already a symlink; a pre-existing *real* file is backed up with a timestamp before linking; a pre-existing directory aborts the link with an error instead of nesting inside it; warns if the interactive profile hasn't logged in yet
-4. No `CLAUDE.md` is created for this profile — deliberately no global memory for autonomous runs
+   ```
+   <!-- dotfiles:import -->
+   @/path/to/dotfiles/claude/CLAUDE.md
+   <!-- /dotfiles:import -->
+   ```
 
-**Cursor flow (optional, interactive prompt):**
-1. Create `~/.cursor/rules/` if it doesn't exist
-2. Generate `global-rules.mdc` from `CLAUDE.md` (alwaysApply: true)
-3. Generate `.mdc` for each skill with appropriate globs
+   The destination is a shared file — ai-team writes `<!-- ai-team:orchestrator -->` into it — so only what sits between these two markers is ever touched. The function also removes the bare `@…` line older versions of this script wrote: without that, the old line would end up below the new block and the repo's CLAUDE.md would load twice. Unbalanced markers (an opening without its closing) abort with exit 1 instead of guessing where the block ends, and a file that already matches the desired content is skipped with no backup and no write
+3. `settings.json` → `jq` merge, repo wins the keys it declares (`permissions`, `outputStyle`, `statusLine`, `hooks`). Local-only keys that apps write — `enabledPlugins`, `effortLevel`, `autoMode`… — survive by exclusion. Arrays are replaced whole, never concatenated
+4. `statusline-command.sh` and `notify-hook.sh` → copied, not symlinked, so an external app editing them doesn't dirty the repo; `notify-hook.sh` gets `chmod +x`
+5. `output-styles/` → copied recursively, same rationale
+6. `skills/` is not managed here (see the scope boundary above)
 
 **Key characteristics:**
 - Color-coded output (GREEN, YELLOW, RED)
 - Idempotent — safe to run multiple times
-- Backs up existing files before replacing (import/merge/copy helpers each take their own backup before overwriting)
+- Backs up before replacing: each import/merge/copy helper takes its own timestamped backup
+- No path hardcoded to one user — `settings.json` writes `$HOME` into the status line and hook commands, and both fields run through a shell that expands it
+- **Copies, it does not prune.** A file dropped from the repo survives in `~/.claude/` until deleted by hand. `output-styles/` is the exception: `copy_directory` moves the whole destination to a backup before copying, so removals there do propagate
 
 ### shell/index.sh
 
@@ -389,7 +358,7 @@ Purpose: Install the single `source shell/index.sh` line into the user's `~/.bas
 3. Scrub legacy sourcing found anywhere in the file, outside the delimited block — anchored to THIS repo's own resolved path (`$DOTFILES_DIR`), plus its `$HOME/...` and `~/...` literal-text forms, never to any project whose path merely happens to end in `shell/{exports,aliases,functions,prompt}.sh`: standalone `source`/`.` lines (with an optional trailing `# comment`), the same paths wrapped in a 3-line `if [ -f ... ]; then source ...; fi` guard, and the one-line `[ -f X ] && source X` form — plus any previously-installed delimited block itself, so it can be rewritten fresh. A `#` comment immediately preceding a removed construct is also dropped when it would otherwise become an orphan (the line right after the construct is blank or EOF) — a single line in that case, never the whole contiguous comment block, so a section header sitting above it is not dragged along. It is ALSO dropped, and then as the whole contiguous block, when code survives right below instead AND the comment block carries positive textual evidence that it introduced what was removed: it must both name (in Spanish or English) the `shell/{exports,aliases,functions,prompt}.sh` file the construct sourced — case-insensitive stem `alias`/`export`/`func`/`prompt` — and contain a loading verb (`cargar`/`carga`/`load`/`source`). Both conditions are required because the stem alone produced a reproduced false positive: "# Exports y variables de entorno de esta maquina" above a removed `exports.sh` line describes the surviving `export EDITOR=...` below it, not the removed block, and it names no loading verb. Every comment the scrub retires is printed by name in the installer's output — the removal is never silent. Left alone otherwise, since a comment with no such textual link could just as well be describing the surviving code (e.g. "# Configura el PATH del usuario" directly above a surviving `export PATH=...` stays even after an unrelated block above it is removed)
 4. Collapse consecutive blank lines, but ONLY in the gaps a removal in this run just opened — a run of blank lines with zero legacy content anywhere near it is never touched, so re-running never rewrites the user's own spacing choices elsewhere in the file
 5. Compute the desired final content (a separator blank line is added before the fresh block only if the kept content doesn't already end in one) and compare it to the current file; if they already match, skip entirely (no backup, no write) — mirrors the skip-if-already-linked pattern the `Makefile`'s `git`/`starship` targets use
-6. Otherwise: resolve the real write target via `readlink -f` (so a symlinked rc is preserved as a symlink — only its target's content changes) and capture its current permission mode; timestamped backup of the current rc file (skipped entirely if the rc was created fresh by this same run — step 1); prune `<rc>.bak.*` backups older than 30 days (the same window `scripts/claude-headless.sh` gives its logs, deliberately not the 7-day one it gives credential backups — this backup is the only recovery path from a destructive scrub); write the desired content to a temp file in the same directory, `chmod` it to the captured mode, then `mv -f` onto the resolved target — never a direct `>` redirect, so an interrupted write can't leave a partially-truncated rc:
+6. Otherwise: resolve the real write target via `readlink -f` (so a symlinked rc is preserved as a symlink — only its target's content changes) and capture its current permission mode; timestamped backup of the current rc file (skipped entirely if the rc was created fresh by this same run — step 1); prune `<rc>.bak.*` backups older than 30 days (a deliberately generous window — this backup is the only recovery path from a destructive scrub); write the desired content to a temp file in the same directory, `chmod` it to the captured mode, then `mv -f` onto the resolved target — never a direct `>` redirect, so an interrupted write can't leave a partially-truncated rc:
    ```
    # >>> dotfiles >>>
    [ -f "<abs-path-to-repo>/shell/index.sh" ] && source "<abs-path-to-repo>/shell/index.sh"
