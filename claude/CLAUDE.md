@@ -57,14 +57,3 @@ only when the binary isn't there.
 
 Don't reach for `bat`, `eza`, `fzf`, `zoxide` or `tldr`: they colorize, paginate or need a
 terminal to sit in. They're for the human at the keyboard, not for tool output.
-
-## Shell
-
-A PreToolUse guard this repo installs (`claude/bash-guard-hook.sh`) denies two command
-shapes outright, so write around them:
-
-- Never combine `cd` with a redirection (`>`, `2>`, `<`). Pass absolute paths to the tool
-  instead — `rg <path>`, `git -C <path>`. If `cd` is unavoidable (`./gradlew`), drop every
-  redirection from that command
-- No `for`/`while` loops over shell variables. Pass the paths or globs directly as arguments
-  in a single command, or use the Grep/Glob tools

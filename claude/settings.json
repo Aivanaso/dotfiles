@@ -101,17 +101,6 @@
     "command": "bash \"$HOME/.claude/statusline-command.sh\""
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/bash-guard-hook.sh\""
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
