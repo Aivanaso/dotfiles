@@ -13,9 +13,8 @@ DOTFILES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLAUDE_DIR="$DOTFILES_DIR/claude"
 
 CLAUDE_HOME="$HOME/.claude"
-CURSOR_RULES_DIR="$HOME/.cursor/rules"
 
-echo -e "${GREEN}🔧 Instalando configuración de Claude Code y Cursor...${NC}"
+echo -e "${GREEN}🔧 Instalando configuración de Claude Code...${NC}"
 
 # ============================================
 # Funciones auxiliares
@@ -173,59 +172,6 @@ create_import_file() {
     echo "$import_line" > "$target"
     echo -e "${GREEN}✅ $name creado con import → $source${NC}"
 }
-
-# Obtener globs de Cursor para un skill
-get_cursor_globs() {
-    local skill_name="$1"
-    case "$skill_name" in
-        nestjs)
-            echo '"**/*.module.ts", "**/*.controller.ts", "**/*.service.ts"'
-            ;;
-        symfony)
-            echo '"**/*.php", "config/**/*.yaml"'
-            ;;
-        php-8)
-            echo '"**/*.php"'
-            ;;
-        typescript)
-            echo '"**/*.ts", "**/*.tsx"'
-            ;;
-        react)
-            echo '"**/*.tsx", "**/*.jsx"'
-            ;;
-        tailwind)
-            echo '"**/*.css", "tailwind.config.*"'
-            ;;
-        testing)
-            echo '"**/*.test.*", "**/*.spec.*", "**/tests/**"'
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
-
-# Generar fichero .mdc para Cursor
-generate_mdc() {
-    local source_file="$1"
-    local output_file="$2"
-    local description="$3"
-    local globs="$4"
-    local always_apply="$5"
-
-    {
-        echo "---"
-        echo "description: \"$description\""
-        if [[ -n "$globs" ]]; then
-            echo "globs: [$globs]"
-        fi
-        echo "alwaysApply: $always_apply"
-        echo "---"
-        echo ""
-        cat "$source_file"
-    } > "$output_file"
-}
-
 # ============================================
 # Claude Code — Symlinks
 # ============================================
@@ -265,8 +211,8 @@ chmod +x "$CLAUDE_HOME/bash-guard-hook.sh"
 
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
-# Para skills por proyecto: usar `npx autoskills` dentro del proyecto.
-# claude/skills/ del repo queda como archivo histórico de referencia.
+# Para skills de stack (nestjs, react, symfony...): `npx autoskills`
+# dentro del proyecto — solo se cargan donde aplican.
 
 # Copiar directorio output-styles/ (no symlink: apps externas pueden
 # escribir aquí y ensuciarían el repo)
@@ -274,78 +220,6 @@ copy_directory "$CLAUDE_DIR/output-styles" "$CLAUDE_HOME/output-styles" "output-
 
 echo ""
 echo -e "${GREEN}✅ Claude Code configurado${NC}"
-
-# ============================================
-# Cursor — Generación de reglas .mdc
-# ============================================
-
-echo ""
-if [[ -t 0 ]]; then
-    read -p "¿Instalar reglas de Cursor? (y/n) " -n 1 -r
-    echo ""
-else
-    echo -e "${YELLOW}Sin TTY — Cursor skip (ejecútalo manualmente si quieres reglas)${NC}"
-    REPLY=""
-fi
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo -e "${GREEN}=== Cursor ===${NC}"
-
-    mkdir -p "$CURSOR_RULES_DIR"
-
-    # Regla global desde CLAUDE.md
-    generate_mdc \
-        "$CLAUDE_DIR/CLAUDE.md" \
-        "$CURSOR_RULES_DIR/global-rules.mdc" \
-        "Reglas globales — Arquitecto senior, estilo España, buenas prácticas" \
-        "" \
-        "true"
-    echo -e "${GREEN}✅ global-rules.mdc generado${NC}"
-
-    # Generar .mdc para cada skill
-    for skill_dir in "$CLAUDE_DIR"/skills/*/; do
-        skill_name="$(basename "$skill_dir")"
-        skill_file="$skill_dir/SKILL.md"
-
-        if [[ ! -f "$skill_file" ]]; then
-            echo -e "${YELLOW}⚠  $skill_name — SKILL.md no encontrado, skip${NC}"
-            continue
-        fi
-
-        # Extraer descripción del frontmatter
-        description=$(sed -n 's/^description: *"\(.*\)"/\1/p' "$skill_file" | head -1)
-        if [[ -z "$description" ]]; then
-            description="Skill: $skill_name"
-        fi
-
-        # Obtener globs y determinar alwaysApply
-        globs=$(get_cursor_globs "$skill_name")
-        if [[ -n "$globs" ]]; then
-            always_apply="false"
-        else
-            # Skills sin globs que deben estar siempre activos
-            if [[ "$skill_name" == "pr-review" ]] || [[ "$skill_name" == "spec" ]]; then
-                always_apply="true"
-            else
-                always_apply="false"
-            fi
-        fi
-
-        generate_mdc \
-            "$skill_file" \
-            "$CURSOR_RULES_DIR/${skill_name}.mdc" \
-            "$description" \
-            "$globs" \
-            "$always_apply"
-
-        echo -e "${GREEN}✅ ${skill_name}.mdc generado${NC}"
-    done
-
-    echo ""
-    echo -e "${GREEN}✅ Cursor configurado${NC}"
-else
-    echo -e "${YELLOW}Cursor — skip${NC}"
-fi
 
 # ============================================
 # Resumen
@@ -364,12 +238,6 @@ echo -e "    ${YELLOW}~/.claude/notify-hook.sh${NC}           → copiado del re
 echo -e "    ${YELLOW}~/.claude/bash-guard-hook.sh${NC}       → copiado del repo (guard PreToolUse de Bash)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    echo -e "  Cursor:"
-    echo -e "    ${YELLOW}~/.cursor/rules/*.mdc${NC}    → reglas generadas"
-fi
 
 echo ""
 echo -e "${GREEN}🎉 ¡Todo listo!${NC}"
