@@ -21,6 +21,7 @@ alias gb='git branch'
 alias gst='git stash'
 alias gstp='git stash pop'
 alias gcp='git cherry-pick'
+alias gsp='git-switch-pull'
 
 # ============================================
 # Docker

@@ -89,4 +89,38 @@ git-log-interactive() {
             "${BINDS[@]}"
 }
 
+# Cambiar de rama y traer los cambios remotos: git switch <rama> && git pull
+# Reenvia "$@" entero, no solo "$1", para que lo que el completado ofrece
+# (los flags propios de `git switch`) llegue de verdad a git.
+git-switch-pull() {
+    if [ -z "$1" ]; then
+        echo "❌ Uso: git-switch-pull <rama>"
+        return 1
+    fi
+
+    git switch "$@" && git pull
+}
+
+# Completado de nombres de rama para git-switch-pull y su alias gsp
+# (ver aliases.sh) — reutiliza el completado que bash-completion ya
+# trae para `git switch`. _git_switch y __git_complete viven en el
+# fichero de completado de git, que bash-completion carga de forma
+# perezosa (al pulsar TAB sobre `git` por primera vez), no al arrancar
+# la shell — así que aquí se fuerza esa carga si todavía no ha
+# ocurrido. Se registra solo en shell interactiva (no tiene sentido ni
+# coste en una no interactiva) y solo si esa maquinaria de git existe
+# en la máquina: si no (p.ej. en un equipo sin bash-completion), este
+# bloque se salta en silencio — la función y el alias siguen
+# funcionando igual, simplemente sin completado de ramas.
+if [[ $- == *i* ]]; then
+    if ! declare -F __git_complete &> /dev/null && declare -F _completion_loader &> /dev/null; then
+        _completion_loader git &> /dev/null
+    fi
+
+    if declare -F __git_complete &> /dev/null && declare -F _git_switch &> /dev/null; then
+        __git_complete git-switch-pull _git_switch
+        __git_complete gsp _git_switch
+    fi
+fi
+
 # Aquí puedes añadir más funciones en el futuro

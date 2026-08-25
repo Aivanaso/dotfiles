@@ -69,9 +69,10 @@ Available functions (see `shell/functions.sh`):
 - `install-deb <file.deb>` — installs a .deb package, fixes dependencies, and removes the file on success
 - `find-in-files <text>` (alias `fif`) — `rg` content search piped into `fzf` with a `bat`/`cat` preview, opens the pick at the exact line in `$EDITOR`
 - `git-log-interactive [git-log-args]` (alias `glf`) — `git log --oneline` piped into `fzf` with a commit preview; Enter opens the full commit, Ctrl-Y copies the hash (Wayland `wl-copy` or X11 `xclip`, whichever is present)
+- `git-switch-pull <rama>` (alias `gsp`) — `git switch <rama> && git pull`; keeps git's own branch-name completion for both names when bash-completion's git support is available on the machine, degrades silently (no completion, function/alias still work) otherwise
 
 Key aliases (see `shell/aliases.sh` for full list):
-- **Git:** `gs`, `ga`, `gc`, `gcm`, `gp`, `gpl`, `gd`, `gl`, `gco`, `gcb`
+- **Git:** `gs`, `ga`, `gc`, `gcm`, `gp`, `gpl`, `gd`, `gl`, `gco`, `gcb`, `gsp`
 - **Docker:** `d`, `dc`, `dcu`, `dcd`, `dcl`, `dcr`
 - **Node/pnpm:** `p`, `pi`, `pd`, `pb`, `pt`, `px`
 - **System:** `ll`, `la`, `lt` (eza with ls fallback), `cat` (bat/batcat fallback), `help` (tldr), `fif`, `glf`, `..`, `...`, `cls`
@@ -216,7 +217,7 @@ Purpose: Hook for machine-local configuration that must never be versioned
 
 ### shell/functions.sh
 
-Purpose: Provide utility functions for system administration and interactive search/navigation
+Purpose: Provide utility functions for system administration, interactive search/navigation, and git workflow shortcuts
 
 **install-deb function:**
 1. Validates argument provided
@@ -235,6 +236,11 @@ Purpose: Provide utility functions for system administration and interactive sea
 - Enter opens the full commit in `less -R`; Ctrl-Y copies the hash — via `wl-copy` (Wayland) or `xclip` (X11), whichever is present; the binding is omitted if neither is
 - Errors clearly if not run inside a git repository
 
+**git-switch-pull function (alias `gsp`):**
+- `git switch <rama> && git pull` — switches branch and immediately brings it up to date with the remote
+- Registers git's own branch-name completion (`_git_switch`, via bash-completion's `__git_complete`) for both `git-switch-pull` and `gsp`, forcing bash-completion's lazy git-completion load if it hasn't fired yet in that shell process (measured cost: ~2.9 ms of startup, paid once per interactive shell process — every new terminal or tab, not once per login session) — registered only in an interactive shell, and only when bash-completion's git support is present on the machine; sourcing this file in a non-interactive shell, or on a machine without it, is a silent no-op — the function and alias still work, just without branch completion
+- Errors clearly (usage message, exit 1) if called with no branch name, same pattern as `find-in-files`
+
 **Design notes:**
 - Designed to be extensible - add more functions to this file
 - All user-facing messages use emojis for visual clarity
@@ -249,6 +255,7 @@ Purpose: Shell aliases grouped by category (Git, Docker, Node/pnpm, System)
 - `cat` aliased to `bat`, falling back to `batcat` (Ubuntu's package name for the binary), guarded by `command -v` on both names — no alias at all if neither is installed
 - `help` aliased to `tldr` if installed
 - `fif`/`glf` — aliases for the `find-in-files`/`git-log-interactive` functions in `shell/functions.sh`
+- `gsp` — alias for the `git-switch-pull` function in `shell/functions.sh`; lives in the Git block, not the search/navigation block at the bottom — unlike `fif`/`glf`, `gsp` is a git alias
 - Navigation shortcuts (`..`, `...`, `....`)
 - Sourced at shell startup, not executed as a script
 
