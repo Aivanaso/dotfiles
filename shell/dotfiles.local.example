@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# ============================================
+# Plantilla de ~/.dotfiles.local — config de ESTA máquina, no versionada
+# ============================================
+# `make local` la instala en ~/.dotfiles.local la primera vez (nunca
+# sobrescribe uno que ya exista); `mkalias` (shell/functions.sh) la usa
+# como punto de partida si añades un alias y el fichero todavía no existe.
+#
+# Qué va aquí y qué NO — la lista completa (con ejemplos reales) vive en
+# la cabecera de shell/local.sh y en CLAUDE.md, sección "Machine-local
+# config"; no se repite aquí para que ambos sitios no se desincronicen.
+# En corto: SOLO lo específico de esta máquina (proxy, JAVA_HOME,
+# credenciales…) — lo que aplica a todas tus máquinas va en el repo
+# (shell/exports.sh, shell/aliases.sh, shell/functions.sh, shell/options.sh).
+#
+# Cada bloque de abajo está comentado — descoméntalo y edítalo según
+# necesites. Para alias sueltos no hace falta editar este fichero a
+# mano: `mkalias <nombre> <comando>` te lo añade aquí mismo y lo deja
+# activo en la shell en el acto.
+
+# --- Alias de esta máquina --------------------------------------------
+# alias miapp='cd ~/Proyectos/mi-app && code .'
+
+# --- Variables de entorno / *_HOME de esta máquina ---------------------
+# export JAVA_HOME="/usr/lib/jvm/java-17-openjdk"
+# export OLLAMA_MODELS="/mnt/datos/ollama-models"
+
+# --- PATH adicional de esta máquina -------------------------------------
+# export PATH="$HOME/bin-privado:$PATH"
+
+# --- Proxy corporativo / registry privado -------------------------------
+# export http_proxy="http://proxy.empresa.local:3128"
+# export https_proxy="$http_proxy"
+# export no_proxy="localhost,127.0.0.1,.empresa.local"

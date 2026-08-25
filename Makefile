@@ -1,8 +1,8 @@
-.PHONY: all help shell packages source claude git starship recovery fonts kitty
+.PHONY: all help shell packages source claude git starship recovery fonts kitty local
 
 DOTFILES_DIR := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 
-all: packages fonts source claude git starship shell  ## Instalar todo
+all: packages fonts source claude git starship shell local  ## Instalar todo
 
 help:  ## Mostrar ayuda
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -85,3 +85,16 @@ kitty:  ## Enlazar config/kitty/kitty.conf (opt-in — instala kitty con `make s
 
 shell:  ## Instalar el punto de entrada único de shell en ~/.bashrc
 	bash $(DOTFILES_DIR)/scripts/install_shell.sh
+
+local:  ## Crear ~/.dotfiles.local desde la plantilla (nunca sobrescribe uno existente)
+	@TARGET="$${DOTFILES_LOCAL:-$(HOME)/.dotfiles.local}"; \
+	if [ -e "$$TARGET" ] || [ -L "$$TARGET" ]; then \
+		echo "\033[1;33m↔  $$TARGET ya existe — skip (no se sobrescribe)\033[0m"; \
+	else \
+		if cp "$(DOTFILES_DIR)/shell/dotfiles.local.example" "$$TARGET" && chmod 600 "$$TARGET"; then \
+			echo "\033[0;32m✅ $$TARGET creado desde shell/dotfiles.local.example (modo 600)\033[0m"; \
+		else \
+			echo "\033[0;31m❌ No se pudo crear $$TARGET\033[0m" >&2; \
+			exit 1; \
+		fi; \
+	fi
