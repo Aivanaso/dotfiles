@@ -314,13 +314,15 @@ Purpose: Global gitignore, symlinked to `~/.gitignore` — the `core.excludesfil
 
 Purpose: Install system packages, Docker, and Starship
 
-**apt packages:** build-essential, curl, wget, git, jq, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig
+**apt packages:** build-essential, curl, wget, git, jq, jc, gron, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig
 
 `fontconfig` is required so `fc-cache` exists before `make all` reaches the `fonts` target (`Makefile`'s second prerequisite, right after `packages`) — `install_fonts.sh` aborts if `fc-cache` is missing, which would otherwise break the whole bootstrap on a minimal base before `source`, `claude`, `git`, `starship` and `shell` ever run.
 
 **bat → batcat symlink:** Ubuntu's `bat` apt package installs its binary as `batcat` (name collision with `bacula-console`). After installing packages, the script symlinks `~/.local/bin/bat` → `/usr/bin/batcat` — idempotent (`ln -sf`) and skipped if `bat` already resolves in the `PATH` (never overwrites a real `bat` binary). The success message does not claim `bat` already works: on a fresh install `~/.local/bin` may not be on the `PATH` yet, so it also tells the user to open a new shell session (see `shell/exports.sh`).
 
 **fd → fdfind symlink:** same name-collision pattern as `bat`/`batcat` — Ubuntu's `fd-find` apt package installs its binary as `fdfind`. Immediately after the `bat` block, the script symlinks `~/.local/bin/fd` → `/usr/bin/fdfind` with the identical shape: idempotent (`ln -sf`), skipped if `fd` already resolves in the `PATH` (never overwrites a real `fd` binary), same `PATH`-not-yet-updated warning.
+
+**`jc`/`gron` (no symlink block):** both come from apt, both in Ubuntu's `universe` repository. Unlike `bat` and `fd-find` above, neither Ubuntu package renames its binary — `jc`'s package installs `/usr/bin/jc` and `gron`'s installs `/usr/bin/gron`, so both resolve under their own name with no shim required. apt is the install path deliberately, not `pip install jc` as some `jc` write-ups suggest: Ubuntu 24.04 ships Python as an externally-managed environment (PEP 668), so an unqualified `pip install` at the system level is refused there. One cross-file consequence worth knowing: `shell/exports.sh` exports `LC_ALL=es_ES.UTF-8` when that locale exists, and `jc`'s parsers key off the command's English column headers — so `jc` invocations on this machine need an `LC_ALL=C` prefix. The failure is silent for localized coreutils output (`df -h | jc --df` returns Spanish keys like `tamaño`/`uso%` rather than erroring), which is why `claude/CLAUDE.md` documents the prefix as mandatory rather than optional.
 
 **Docker flow (optional, interactive):**
 1. Check if `docker` command exists

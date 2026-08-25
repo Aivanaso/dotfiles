@@ -18,6 +18,8 @@ PACKAGES=(
     wget
     git
     jq
+    jc
+    gron
     htop
     unzip
     zip
