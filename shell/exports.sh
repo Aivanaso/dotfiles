@@ -57,7 +57,26 @@ unset -f _add_to_path
 # ============================================
 # FZF
 # ============================================
-export FZF_DEFAULT_OPTS='--reverse --height 40% --border --color=fg:#c0caf5,bg:#1a1b26,hl:#bb9af7,fg+:#c0caf5,bg+:#283457,hl+:#7dcfff,info:#7aa2f7,prompt:#7dcfff,pointer:#bb9af7,marker:#9ece6a,spinner:#bb9af7'
+# Paleta Japanesque, derivada del bloque "Tema" de config/kitty/kitty.conf
+# (que a su vez sale de `kitten themes --dump-theme Japanesque`) para que
+# terminal y fzf compartan esquema. Cada color de fzf toma el rol
+# equivalente en kitty: fg/bg el par foreground/background, bg+ el
+# selection_background, hl el magenta (color5), info el azul (color4),
+# prompt el cian base (color6), marker el verde (color2), spinner el mismo
+# magenta que hl.
+# TRES desviaciones deliberadas de ese mapeo, todas por contraste sobre el
+# teal oscuro de bg+ (#165776), no por descuido:
+#   1. hl+ usa el cian claro #76bbca (color14) en vez del base #389aac,
+#      porque tiene que leerse SOBRE bg+, no sobre el fondo.
+#   2. pointer usa el ámbar #eccf4f — el color que kitty da al cursor, el
+#      acento más fuerte del tema — porque el magenta #a57fc4 sobre bg+
+#      queda apagado.
+#   3. fg+ se queda claro (#f7f6ec) sobre bg+, al contrario que la selección
+#      de kitty, que el tema define oscura (#1d1d1d sobre #165776): en kitty
+#      eso marca texto seleccionado puntualmente, mientras que en fzf marca
+#      la línea bajo el cursor, que se lee de continuo — ahí gana la
+#      legibilidad.
+export FZF_DEFAULT_OPTS='--reverse --height 40% --border --color=fg:#f7f6ec,bg:#1d1d1d,hl:#a57fc4,fg+:#f7f6ec,bg+:#165776,hl+:#76bbca,info:#4c99d3,prompt:#389aac,pointer:#eccf4f,marker:#7bb75b,spinner:#a57fc4'
 
 # ============================================
 # FNM (Fast Node Manager) — instalado por scripts/install_from_source.sh
