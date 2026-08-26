@@ -39,27 +39,16 @@ be broken if you know why — and readable code over cleverly optimized code.
 
 Installed by this dotfiles repo. Listed only where they beat the default tool.
 
-**Search ladder** — the same three steps for content (`rg`) and for filenames (`fd`):
-
-1. `rg <pattern>` / `fd <fragment>` — fast, and `fd` matches any fragment of the name
-   without needing `find -exec`
-2. Zero results inside a repo? Retry with `rg -uu` / `fd -u`. Both skip hidden files **and**
-   anything the gitignore covers, and the global gitignore here hides `.claude/`,
-   `.ai-team/`, `.agents/`, `docs/` and `memorias-ivan/` — the agent working directories
-3. Binary missing? Only then fall back to `grep -r` / `find`. On Ubuntu `fd` may be
-   installed under the name `fdfind`
-
-Never fall back to `find`/`grep` because a search came back empty. That hides the ignore
-filter instead of lifting it, and an empty result is sometimes the true answer. Fall back
-only when the binary isn't there.
+`fd <fragment>` for filenames — it matches any fragment of the name without needing
+`find -exec`; add `fd -u` when the file you're after is itself hidden or gitignored. On
+Ubuntu `fd` may be installed under the name `fdfind`.
 
 `jq` for reading and transforming JSON when you already know the document's shape.
 
 `gron` for when you don't: it flattens JSON into one assignment line per value
 (`json.a.b[0] = "x";`), so finding a key in an unfamiliar document becomes an `rg` search
 instead of guessing the schema — `gron file.json | rg -i token` returns the exact path to
-that value. `gron -u` (or `--ungron`) reverses the flattening back to JSON. This slots into
-the search ladder above the same way `rg`/`fd` do.
+that value. `gron -u` (or `--ungron`) reverses the flattening back to JSON.
 
 `jc` converts command output to JSON (`jc --ps`, `jc --df`, `jc --ss`, `jc --systemctl`,
 `jc --dig`; `jc -p` pretty-prints). Its value isn't readability — `df -h`/`ps aux`'s own
