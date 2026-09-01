@@ -67,7 +67,6 @@
       "Bash(df *)",
       "Bash(fd *)",
       "Bash(fdfind *)",
-      "Bash(rm -rf .ai-team/*)",
       "Bash(cat .env)",
       "Bash(cat package.json)",
       "Bash(cat composer.json)",
