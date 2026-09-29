@@ -191,7 +191,7 @@ Purpose: Single entry point for the whole shell configuration — the file `~/.b
 3. `aliases.sh`
 4. `functions.sh`
 5. `options.sh` — bash interactive `shopt`s and history settings
-6. `prompt.sh` — Starship
+6. `prompt.sh` — Starship, then zoxide (see `shell/prompt.sh` below for why zoxide lives here)
 7. `local.sh` — always LAST, so `~/.dotfiles.local` can override anything above
 
 **Key characteristics:**
@@ -286,16 +286,16 @@ Purpose: Environment variables and PATH configuration
 - **Locale guard:** `LANG`/`LC_ALL` are only exported as `es_ES.UTF-8` when `locale -a` confirms that locale is actually generated on the machine — forcing an ungenerated locale produces perl/locale warnings on every command, which is likely on a machine that hasn't generated Spanish locales (e.g. a work machine). If `es_ES.UTF-8` isn't available, it falls back to `C.UTF-8` (present on every modern glibc, no `locale-gen` needed) or `en_US.UTF-8` if that one exists instead — only `LANG` is set in the fallback, `LC_ALL` stays unset so per-category overrides still work. Without this fallback a machine with neither locale would inherit `C`/`POSIX`, which breaks this repo's own emoji/box-drawing output (`scripts/install_*.sh`, `shell/functions.sh`)
 - PATH additions: composer, npm-global, cargo, go, `~/.local/share/fnm`, `~/.local/bin` (in that order — see above)
 - **fnm:** `eval "$(fnm env)"` if the `fnm` binary resolves (absorbed from what used to be hand-written directly in the user's `~/.bashrc`, and therefore missing on any new machine)
-- **zoxide:** `eval "$(zoxide init bash)"` if installed
 - **cargo:** sources `~/.cargo/env` if the file exists
 
 ### shell/prompt.sh
 
-Purpose: Initialize Starship prompt if installed
+Purpose: Initialize the Starship prompt and zoxide, in that order
 
 **Key characteristics:**
-- Guards with `command -v starship` — safe to source even without Starship
-- Single responsibility: only prompt initialization
+- Starship guarded by `command -v starship`, zoxide by `command -v zoxide` — safe to source without either
+- **zoxide:** `eval "$(zoxide init bash)"` if installed, deliberately AFTER Starship: `starship init bash` moves the existing `PROMPT_COMMAND` into `STARSHIP_PROMPT_COMMAND` and leaves only `starship_precmd` in it, and zoxide >= 0.9.8 checks that `__zoxide_hook` is in `PROMPT_COMMAND` — initialized earlier (it used to live in `shell/exports.sh`), every `z` printed "detected a possible configuration issue". Both hooks end up in `PROMPT_COMMAND`
+- Single responsibility: interactive prompt-related initialization (prompt and directory-jump hook)
 
 ### config/starship.toml
 

@@ -86,13 +86,6 @@ if command -v fnm &> /dev/null; then
 fi
 
 # ============================================
-# zoxide — navegación inteligente de directorios (`z <patrón>`)
-# ============================================
-if command -v zoxide &> /dev/null; then
-    eval "$(zoxide init bash)"
-fi
-
-# ============================================
 # Cargo (Rust)
 # ============================================
 if [ -f "$HOME/.cargo/env" ]; then
