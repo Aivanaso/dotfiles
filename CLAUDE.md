@@ -338,7 +338,7 @@ Purpose: Global gitignore, symlinked to `~/.gitignore` — the `core.excludesfil
 
 Purpose: Install system packages, Docker, and Starship
 
-**apt packages:** build-essential, curl, wget, git, jq, jc, gron, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig
+**apt packages:** build-essential, curl, wget, git, jq, jc, gron, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig, wl-clipboard
 
 `fontconfig` is required so `fc-cache` exists before `make all` reaches the `fonts` target (`Makefile`'s second prerequisite, right after `packages`) — `install_fonts.sh` aborts if `fc-cache` is missing, which would otherwise break the whole bootstrap on a minimal base before `source`, `claude`, `git`, `starship` and `shell` ever run.
 

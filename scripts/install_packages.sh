@@ -33,6 +33,7 @@ PACKAGES=(
     zoxide
     tldr
     fontconfig
+    wl-clipboard  # wl-copy/wl-paste: portapapeles en Wayland (glf, pegar imágenes en Claude Code)
 )
 
 echo -e "${YELLOW}Actualizando repositorios...${NC}"
