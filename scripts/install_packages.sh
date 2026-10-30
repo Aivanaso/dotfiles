@@ -31,7 +31,7 @@ PACKAGES=(
     eza
     fd-find
     zoxide
-    tldr
+    tealdeer      # cliente Rust de tldr-pages; instala el binario `tldr` (el paquete apt `tldr` ya no existe en Ubuntu 26.04)
     fontconfig
     wl-clipboard  # wl-copy/wl-paste: portapapeles en Wayland (glf, pegar imágenes en Claude Code)
 )
@@ -43,6 +43,30 @@ echo -e "${YELLOW}Instalando paquetes...${NC}"
 sudo apt-get install -y "${PACKAGES[@]}"
 
 echo -e "${GREEN}✅ Paquetes base instalados${NC}"
+
+# ============================================
+# Caché de páginas de tldr (tealdeer)
+# ============================================
+# tealdeer no trae páginas: sin caché, `tldr <comando>` imprime un error y sale
+# con código distinto de cero. Se descarga aquí, para que el alias `help`
+# funcione en el primer uso, y solo si la caché no está ya completa, para que
+# repetir `make packages` no vuelva a descargar. "Completa" se decide por
+# `pages.en`, que solo existe tras una descarga terminada: un `tldr --update`
+# sin red ya crea el directorio `tldr-pages/` y lo deja vacío, así que mirar
+# solo el directorio daría por buena una caché rota y no reintentaría nunca.
+# La ruta replica cómo tealdeer resuelve su directorio de caché
+# (TEALDEER_CACHE_DIR, luego XDG_CACHE_HOME, luego ~/.cache; verificado con
+# `tldr --show-paths`). Un fallo de red no aborta el resto de la instalación:
+# se avisa y se sigue.
+echo ""
+TLDR_PAGES_DIR="${TEALDEER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/tealdeer}/tldr-pages"
+if [ -d "$TLDR_PAGES_DIR/pages.en" ]; then
+    echo -e "${YELLOW}↔  Caché de tldr ya existe ($TLDR_PAGES_DIR) — no se descarga${NC}"
+elif tldr --update; then
+    echo -e "${GREEN}✅ Caché de tldr descargada${NC}"
+else
+    echo -e "${YELLOW}⚠  No se pudo descargar la caché de tldr — ejecuta 'tldr --update' cuando haya red${NC}"
+fi
 
 # ============================================
 # ~/.local/bin — destino de los symlinks bat/fd de abajo. Se crea una

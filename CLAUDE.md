@@ -338,7 +338,9 @@ Purpose: Global gitignore, symlinked to `~/.gitignore` — the `core.excludesfil
 
 Purpose: Install system packages, Docker, and Starship
 
-**apt packages:** build-essential, curl, wget, git, jq, jc, gron, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tldr, fontconfig, wl-clipboard
+**apt packages:** build-essential, curl, wget, git, jq, jc, gron, htop, unzip, zip, ripgrep, bat, eza, fd-find, zoxide, tealdeer, fontconfig, wl-clipboard
+
+`tealdeer` replaces `tldr`: Ubuntu 26.04 no longer ships an apt package named `tldr`, and tealdeer (the Rust client of tldr-pages) installs the same `tldr` binary, so the `help` alias in `shell/aliases.sh` is unchanged. It ships no pages, and without a cache `tldr <command>` prints an error and exits non-zero, so right after the apt install the script runs `tldr --update`, unless the cache is already complete. Complete means the `pages.en` directory exists under `${TEALDEER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/tealdeer}/tldr-pages` (the path `tldr --show-paths` reports) — checking only `tldr-pages/` would be wrong, because a `tldr --update` with no network already creates that directory and leaves it empty, and `pages.en` appears only after a finished download. So repeated `make packages` runs do not re-download, but a run after a failed (offline) one does retry. A failed download prints a `YELLOW` warning instead of aborting the script; run `tldr --update` by hand if you prefer not to rerun.
 
 `fontconfig` is required so `fc-cache` exists before `make all` reaches the `fonts` target (`Makefile`'s second prerequisite, right after `packages`) — `install_fonts.sh` aborts if `fc-cache` is missing, which would otherwise break the whole bootstrap on a minimal base before `source`, `claude`, `git`, `starship` and `shell` ever run.
 
