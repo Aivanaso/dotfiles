@@ -10,7 +10,7 @@ This is a personal dotfiles repository for managing shell configurations, develo
 - **shell/** - Runtime shell functions, aliases, exports, and prompt
 - **claude/** - Claude Code configuration (global instructions, permissions, output styles)
 - **git/** - Git global configuration
-- **config/** - Application configs (Starship prompt, Kitty terminal)
+- **config/** - Application configs (Starship prompt, Kitty terminal, Plymouth boot theme)
 - **Makefile** - Orchestrator for all installation targets
 
 ## Key Commands
@@ -31,6 +31,7 @@ make git         # Symlink .gitconfig + gitignore.global
 make starship    # Symlink starship.toml
 make shell       # Install the single shell/index.sh source line in ~/.bashrc
 make kitty       # Symlink Kitty config (opt-in — install the binary first via `make source`)
+make plymouth    # Install the puerta-enana Plymouth boot theme (opt-in, needs sudo, does not activate it)
 make local       # Create ~/.dotfiles.local from the template (never overwrites an existing one)
 make help        # List all targets
 ```
@@ -316,6 +317,26 @@ Purpose: Kitty terminal configuration — symlinked to `~/.config/kitty/kitty.co
 - **Window:** `window_padding_width 6` — the unit is **pts, not pixels** (kitty scales it with the display's DPI, so the same value looks the same on a HiDPI laptop panel and an external monitor); the value was picked by testing live with throwaway instances (`kitty -o window_padding_width=N`) rather than by editing the repo, since kitty's own default of `0` leaves text flush against the border. `background_opacity 0.94` for a deliberately subtle translucency, carrying three costs the in-file comment spells out so the choice stays conscious: any value below `1.0` is a "possibly significant" performance hit by kitty's own documentation; it applies only to cells whose background IS the terminal's default background, so a themed editor or a powerline segment still renders opaque (intentional — it keeps status bars legible); and **changing it and reloading the config does nothing unless `dynamic_background_opacity` was already enabled when that kitty instance started**. That option is deliberately left undeclared (its default is `no`, precisely because it costs performance), so an opacity edit is only visible in instances started afterwards — `ctrl+shift+f5` will not show it. `hide_window_decorations` is undeclared on purpose too: running without KDE's titlebar was tested live and rejected, because without it the window can only be moved with `Meta`+drag
 - Generous scrollback, audio bell disabled; tab/split keybindings declared explicitly (window navigation on `ctrl+shift+up`/`down` rather than `ctrl+shift+[`/`]`, which need AltGr on a Spanish keyboard; explicit `ctrl+shift+d`/`ctrl+shift+s` bindings for vertical/horizontal splits, since `enabled_layouts splits` alone gives no way to pick the axis); `confirm_os_window_close` set to avoid accidentally closing a window that has multiple tabs/panels open. Known benign startup warning: kitty prints `ignoreboth or ignorespace present in bash HISTCONTROL setting, showing running command will not be robust` because of `HISTCONTROL=ignoreboth:erasedups` in `shell/options.sh` — it degrades only kitty's ability to put the running command in the tab title, nothing else
 
+### config/plymouth/puerta-enana/
+
+Purpose: a Plymouth boot splash theme (`ModuleName=script`) — an original dwarven stone gate at night whose silver engravings (stars, columns, arch, a runic inscription, door leaves, a sigil) light up one group after another with boot progress and then pulse gently until the login screen appears. Installed by the opt-in `make plymouth`; like `make kitty` it is NOT a prerequisite of `make all`, so a plain `make all` never touches `/usr/share/plymouth`.
+
+**Files:**
+- `puerta-enana.plymouth` — theme descriptor; `ImageDir`/`ScriptFile` point at `/usr/share/plymouth/themes/puerta-enana/`, the fixed install path
+- `puerta-enana.script` — the animation: lights the 13 `glow-NN.png` layers in order, pulses once all are lit, handles the callbacks listed below
+- `generate_frames.py` — reproducible generator for every PNG in the directory (Python 3, Pillow + pycairo, plus the `Noto Sans Runic` font file). Run `python3 config/plymouth/puerta-enana/generate_frames.py [OUT_DIR]`; two runs produce byte-identical files. The PNGs are committed so installing needs neither Python nor the font
+- `*.png` — `base.png` is the whole scene with every engraving as an unlit groove (the only full-size frame); `glow-01..13`, `moon`, `halo` are cropped transparent layers (the lit version of each group); `twinkle-1..3` are sky glints; `entry`/`bullet` are the password slot and its bullets
+
+**Key characteristics:**
+- **Runic inscription:** «bienvenido a tu reino» transliterated letter by letter into historical Elder Futhark (`TRANSLITERATION` table in the generator; `v` takes wunjo ᚹ) and baked into the frames with the `Noto Sans Runic` font, so nothing needs that font at boot. The generator asserts every rune is one of the 24 Elder Futhark letters (plus the ᛫ word separator) and has a real glyph in the font
+- **Layer table is duplicated on purpose:** the script is hand-written, so the `AddLayer("glow-NN", x, y);` lines hold the crop positions of the cropped PNGs. The generator checks those exact lines against what it just rendered and exits non-zero, printing the correct lines, when they drift — regenerate, then paste
+- **Modes:** boot lights the gate from Plymouth's boot progress, with a slow time-based fallback so it still advances when progress stalls; `updates`/`system-upgrade`/`firmware-upgrade`/`system-reset` light it from the update percentage (`Plymouth.SetSystemUpdateFunction`) and show a status line ("Instalando actualizaciones...  45 %") below the gate in the system font (`Sans`, Spanish text, not runes); `shutdown`/`reboot` start fully lit
+- **Text:** disk-check progress (`fsck:<dev>:<percent>` status updates) and `plymouth display-message` messages use the same plate below the gate, as a second line. The password prompt (and `ask-question`) takes the plate over: prompt text, a recessed entry slot and one lozenge per typed character, all PNG-backed so the slot works even if a font is missing in the initramfs
+- **Scaling:** frames are baked at 1000×960. Screens shorter than 960/0.92 px get everything scaled down at load; nothing is ever scaled up (memory in the initramfs), so on 4K the gate is simply smaller
+- **Performance:** opacities are quantised to 1/40 and a sprite is only touched when its value changes; the refresh rate is set to 30 Hz
+- Only the descriptor, the script and the PNGs are installed; `generate_frames.py` stays in the repo
+- **Not verified on real hardware:** the script was checked by running it under Plymouth's own script interpreter (`script.so`) with stubbed `Window`/`Image`/`Sprite`, not by booting it. A preview needs root (`plymouthd --debug` on a spare VT) — see the activation steps `make plymouth` prints
+
 ### git/.gitconfig
 
 Purpose: Global git configuration — symlinked to `~/.gitconfig`
@@ -416,6 +437,7 @@ Purpose: Orchestrate all installation targets
 - `starship` — Symlink `starship.toml` with backup
 - `shell` — Run `install_shell.sh` (single `shell/index.sh` source line in `~/.bashrc`)
 - `kitty` — Symlink `config/kitty/kitty.conf` with backup (opt-in; not a dependency of `all` — install the binary first via `make source`)
+- `plymouth` — Copy the `puerta-enana` Plymouth theme (descriptor, script, PNGs) to `/usr/share/plymouth/themes/puerta-enana/` with `sudo` and register it with `update-alternatives` at priority 1, below every stock theme, so even an `auto`-mode machine never switches to it by itself. It does NOT activate the theme: it prints the two commands that do (`sudo update-alternatives --set default.plymouth …` and `sudo update-initramfs -u`). Opt-in; not a dependency of `all`
 - `local` — Copy `shell/dotfiles.local.example` to `~/.dotfiles.local` (override: `DOTFILES_LOCAL`) at mode `600`, only if nothing is there yet — never overwrites; aborts with a `❌` error and a non-zero exit if the copy or the `chmod` fails, instead of reporting success regardless; see "Machine-local config" above
 - `help` — List targets with descriptions
 

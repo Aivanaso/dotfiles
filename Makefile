@@ -1,4 +1,4 @@
-.PHONY: all help shell packages source claude git starship recovery fonts kitty local
+.PHONY: all help shell packages source claude git starship recovery fonts kitty plymouth local
 
 DOTFILES_DIR := $(shell cd "$(dir $(lastword $(MAKEFILE_LIST)))" && pwd)
 
@@ -82,6 +82,22 @@ kitty:  ## Enlazar config/kitty/kitty.conf (opt-in — instala kitty con `make s
 		ln -sf "$(DOTFILES_DIR)/config/kitty/kitty.conf" "$(HOME)/.config/kitty/kitty.conf"; \
 		echo "\033[0;32m✅ kitty.conf enlazado\033[0m"; \
 	fi
+
+plymouth:  ## Instalar el tema Plymouth puerta-enana (opt-in, pide sudo; no lo activa)
+	@THEME_SRC="$(DOTFILES_DIR)/config/plymouth/puerta-enana"; \
+	THEME_DST="/usr/share/plymouth/themes/puerta-enana"; \
+	if [ ! -f "$$THEME_SRC/puerta-enana.plymouth" ] || [ ! -f "$$THEME_SRC/puerta-enana.script" ]; then \
+		echo "\033[0;31m❌ Falta el tema en $$THEME_SRC\033[0m" >&2; \
+		exit 1; \
+	fi; \
+	sudo install -d "$$THEME_DST" && \
+	sudo rm -f "$$THEME_DST"/*.png && \
+	sudo install -m 644 "$$THEME_SRC"/*.png "$$THEME_SRC/puerta-enana.script" "$$THEME_SRC/puerta-enana.plymouth" "$$THEME_DST/" && \
+	sudo update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$$THEME_DST/puerta-enana.plymouth" 1 && \
+	echo "\033[0;32m✅ Tema puerta-enana instalado en $$THEME_DST\033[0m" && \
+	echo "\033[1;33m↔  No está activado. Para activarlo:\033[0m" && \
+	echo "   sudo update-alternatives --set default.plymouth $$THEME_DST/puerta-enana.plymouth" && \
+	echo "   sudo update-initramfs -u"
 
 shell:  ## Instalar el punto de entrada único de shell en ~/.bashrc
 	bash $(DOTFILES_DIR)/scripts/install_shell.sh

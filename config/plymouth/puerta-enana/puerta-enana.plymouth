@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Puerta Enana
+Description=Una puerta enana de piedra de noche: sus grabados de plata se encienden con el arranque y laten suavemente hasta el login
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/puerta-enana
+ScriptFile=/usr/share/plymouth/themes/puerta-enana/puerta-enana.script
