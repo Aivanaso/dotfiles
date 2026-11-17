@@ -29,8 +29,12 @@ Window.SetBackgroundBottomColor(0.0196, 0.0314, 0.0549);
 Plymouth.SetRefreshRate(global.FRAME_RATE);
 
 global.scale = Math.Min(1, Window.GetHeight() * 0.92 / global.SCENE_HEIGHT);
-global.scene_x = Window.GetX() + Math.Int((Window.GetWidth() - global.SCENE_WIDTH * global.scale) / 2);
-global.scene_y = Window.GetY() + Math.Int((Window.GetHeight() - global.SCENE_HEIGHT * global.scale) / 2);
+// Centre in the shared canvas (Window.GetWidth/GetHeight with no argument = the
+// maximum across displays). Each display shows the centred part of that canvas,
+// so no Window.GetX()/GetY() offset is added: with several displays that offset
+// is the MAX of their offsets and would shift the scene on all of them.
+global.scene_x = Math.Int((Window.GetWidth() - global.SCENE_WIDTH * global.scale) / 2);
+global.scene_y = Math.Int((Window.GetHeight() - global.SCENE_HEIGHT * global.scale) / 2);
 
 // Text colour and fonts. "Sans" resolves to whatever the initramfs ships
 // (Ubuntu) and to the desktop font on a full system.
