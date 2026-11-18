@@ -142,7 +142,7 @@ Purpose: the Claude Code configuration this repo owns — what any session on th
 **Structure:**
 - `CLAUDE.md` — global instructions: register (how to word an explanation), code and git conventions, and the tools this repo installs
 - `settings.json` — permission rules, output style, status line and hooks
-- `output-styles/` — `arquitecto.md`, `jarvis.md` (the default) and `laconico.md`
+- `output-styles/` — `jarvis.md` (the default)
 - `notify-hook.sh` — desktop notification on Stop/Notification, only when the terminal isn't focused
 - `statusline-command.sh` — the status line renderer
 
