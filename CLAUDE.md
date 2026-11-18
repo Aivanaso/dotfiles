@@ -50,7 +50,7 @@ make help        # List all targets
 - Validates `curl`, `unzip`, `sha256sum` and `fc-cache` are present before acting, with a clear error otherwise (`curl`/`unzip`/`fontconfig` are all in `install_packages.sh`'s `PACKAGES` array)
 
 **install_claude.sh:**
-- Installs the Claude Code profile to `~/.claude/`: `CLAUDE.md` as a delimited block holding an `@import` to the repo's file (so the rest of that shared file survives), `settings.json` via a `jq` merge where the repo wins declared keys and local-only runtime keys are preserved, and `notify-hook.sh`/`statusline-command.sh` plus `output-styles/` copied (not symlinked)
+- Installs the Claude Code profile to `~/.claude/`: `CLAUDE.md` as a delimited block holding an `@import` to the repo's file (so the rest of that shared file survives), `settings.json` via a `jq` merge where the repo wins declared keys and local-only runtime keys are preserved, and `statusline-command.sh` plus `output-styles/` copied (not symlinked). It also cleans up the retired desktop-notification hook from older installs (see the `scripts/install_claude.sh` section)
 - Backs up existing files with `.bak` timestamp before overwriting
 - Is idempotent (safe to run multiple times)
 - **Copies, never prunes:** a file removed from the repo survives in `~/.claude/` until it's deleted by hand. `output-styles/` is the exception — `copy_directory` moves the whole destination to a backup before copying, so it does track removals
@@ -141,9 +141,8 @@ Purpose: the Claude Code configuration this repo owns — what any session on th
 
 **Structure:**
 - `CLAUDE.md` — global instructions: register (how to word an explanation), code and git conventions, and the tools this repo installs
-- `settings.json` — permission rules, output style, status line and hooks
+- `settings.json` — permission rules, output style and status line
 - `output-styles/` — `jarvis.md` (the default)
-- `notify-hook.sh` — desktop notification on Stop/Notification, only when the terminal isn't focused
 - `statusline-command.sh` — the status line renderer
 
 **Scope boundary:** this directory holds the standard AI configuration for the machine. The working protocol — ai-team, its `organic-*` skills and its agents — lives in its own repo and injects its own delimited block into `~/.claude/CLAUDE.md`. `install_import_block` is written so the two never overwrite each other.
@@ -171,16 +170,17 @@ Purpose: install the Claude Code configuration into `~/.claude/`
    ```
 
    The destination is a shared file — ai-team writes `<!-- ai-team:orchestrator -->` into it — so only what sits between these two markers is ever touched. The function also removes the bare `@…` line older versions of this script wrote: without that, the old line would end up below the new block and the repo's CLAUDE.md would load twice. Unbalanced markers (an opening without its closing) abort with exit 1 instead of guessing where the block ends, and a file that already matches the desired content is skipped with no backup and no write
-3. `settings.json` → `jq` merge, repo wins the keys it declares (`permissions`, `outputStyle`, `statusLine`, `hooks`). Local-only keys that apps write — `enabledPlugins`, `effortLevel`, `autoMode`… — survive by exclusion. Arrays are replaced whole, never concatenated
-4. `statusline-command.sh` and `notify-hook.sh` → copied, not symlinked, so an external app editing them doesn't dirty the repo; `notify-hook.sh` gets `chmod +x`
-5. `output-styles/` → copied recursively, same rationale
-6. `skills/` is not managed here (see the scope boundary above)
+3. `settings.json` → `jq` merge, repo wins the keys it declares (`permissions`, `outputStyle`, `statusLine`). Local-only keys that apps write — `enabledPlugins`, `effortLevel`, `autoMode`… — survive by exclusion. Arrays are replaced whole, never concatenated
+4. Legacy notify-hook cleanup. Older versions of this script installed a desktop-notification hook (`notify-hook.sh` plus `Stop`/`Notification` entries in `settings.json`); the repo no longer ships it, but the merge keeps local-only keys, so on an already-installed machine the hook would keep firing. The script removes only the hook entries whose command mentions `notify-hook.sh`, drops an event left empty (and the `hooks` object if it ends up empty), and leaves every other hook (ai-team's, for instance) and key untouched. It takes a timestamped `.bak` of `settings.json` before writing, writes through a temp file and moves it into place, and aborts with a red error if `jq` fails — never a half-written file. With nothing to clean it neither backs up nor writes. A leftover `~/.claude/notify-hook.sh` is moved to `notify-hook.sh.bak.<timestamp>`, not deleted
+5. `statusline-command.sh` → copied, not symlinked, so an external app editing it doesn't dirty the repo
+6. `output-styles/` → copied recursively, same rationale
+7. `skills/` is not managed here (see the scope boundary above)
 
 **Key characteristics:**
 - Color-coded output (GREEN, YELLOW, RED)
 - Idempotent — safe to run multiple times
-- Backs up before replacing: each import/merge/copy helper takes its own timestamped backup
-- No path hardcoded to one user — `settings.json` writes `$HOME` into the status line and hook commands, and both fields run through a shell that expands it
+- Backs up before replacing: each import/merge/copy helper takes its own timestamped backup (the `settings.json` merge skips it when the merged result equals what is already there)
+- No path hardcoded to one user — `settings.json` writes `$HOME` into the status line command, which runs through a shell that expands it
 - **Copies, it does not prune.** A file dropped from the repo survives in `~/.claude/` until deleted by hand. `output-styles/` is the exception: `copy_directory` moves the whole destination to a backup before copying, so removals there do propagate
 
 ### shell/index.sh

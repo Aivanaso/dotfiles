@@ -71,27 +71,5 @@
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline-command.sh\""
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/notify-hook.sh\" 'Claude Code' 'Turno terminado' normal /usr/share/sounds/freedesktop/stereo/complete.oga"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/notify-hook.sh\" 'Claude Code' 'Necesita tu atención' critical /usr/share/sounds/freedesktop/stereo/message.oga"
-          }
-        ]
-      }
-    ]
   }
 }

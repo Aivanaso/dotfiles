@@ -26,9 +26,22 @@ echo -e "${GREEN}🔧 Instalando configuración de Claude Code...${NC}"
 # Funciones auxiliares
 # ============================================
 
+# Ruta de backup con marca de tiempo; si ya existe una (dos backups del mismo
+# fichero en el mismo segundo) añade un contador para no pisar la anterior.
+unique_backup_path() {
+    local base="${1}.bak.$(date +%Y%m%d%H%M%S)"
+    local candidate="$base"
+    local n=1
+    while [[ -e "$candidate" ]] || [[ -L "$candidate" ]]; do
+        candidate="${base}.${n}"
+        n=$((n + 1))
+    done
+    echo "$candidate"
+}
+
 # Merge JSON con jq: repo manda en las claves que define, el local
 # conserva las que el repo no toca. Útil para settings.json:
-# permissions/statusLine/hooks vienen del repo (fuente de
+# permissions/statusLine vienen del repo (fuente de
 # verdad); claves runtime que apps escriben en local (enabledPlugins,
 # effortLevel, advisorModel...) se preservan intactas por exclusión.
 merge_json_repo_wins() {
@@ -58,18 +71,25 @@ merge_json_repo_wins() {
         return 0
     fi
 
-    # Backup del local antes del merge
-    local backup="${target}.bak.$(date +%Y%m%d%H%M%S)"
-    cp "$target" "$backup"
-
     # Merge: local + repo, repo gana en conflictos (el segundo argumento
     # de `*` sobrescribe). Claves que solo están en el local (hooks,
     # enabledPlugins, etc.) se preservan por exclusión. Arrays se
     # reemplazan, no se concatenan: el repo es la fuente de verdad
     # para permissions/statusLine.
     local tmp
-    tmp="$(mktemp)"
+    tmp="$(mktemp "${target}.XXXXXX")"
     if jq -s '.[1] * .[0]' "$source" "$target" > "$tmp"; then
+        # Ya está como debe (mismo JSON, orden de claves aparte): ni backup
+        # ni escritura, para que reinstalar no apile backups idénticos
+        if [[ "$(jq -S . "$tmp")" == "$(jq -S . "$target")" ]]; then
+            rm -f "$tmp"
+            echo -e "${YELLOW}↔  $name ya está al día — skip${NC}"
+            return 0
+        fi
+        local backup
+        backup="$(unique_backup_path "$target")"
+        cp "$target" "$backup"
+        chmod --reference="$target" "$tmp"
         mv "$tmp" "$target"
         echo -e "${GREEN}✅ $name merged — repo manda, claves locales únicas se preservan${NC}"
         echo -e "${YELLOW}   Backup: $backup${NC}"
@@ -208,6 +228,73 @@ install_import_block() {
     echo -e "${YELLOW}   Backup: $backup${NC}"
 }
 
+# Limpieza de la instalación antigua del hook de notificaciones: versiones
+# anteriores de este script copiaban notify-hook.sh a ~/.claude y declaraban
+# los hooks Stop/Notification en settings.json. El repo ya no lo distribuye,
+# pero el merge conserva las claves locales únicas, así que sin esta limpieza
+# el hook seguiría disparándose en cada máquina ya instalada.
+#
+# Solo se quitan las entradas de hook cuyo comando menciona notify-hook.sh;
+# cualquier otro hook (ai-team...) y cualquier otra clave quedan intactos. Un
+# evento que se queda vacío se elimina, y el objeto "hooks" también si queda
+# vacío. Sin nada que limpiar no hay backup ni escritura.
+remove_legacy_notify_hook() {
+    local settings="$1"
+    local script="$2"
+
+    if [[ -f "$settings" ]]; then
+        if ! command -v jq >/dev/null 2>&1; then
+            echo -e "${RED}❌ jq no instalado — no se puede limpiar el hook antiguo de settings.json${NC}"
+            return 1
+        fi
+
+        local jq_defs='def is_notify: ((.command? // "") | tostring | contains("notify-hook.sh"));
+            def group_has_notify: (((.hooks? // []) | type) == "array") and any(.hooks[]?; is_notify);'
+
+        local has_legacy
+        if ! has_legacy="$(jq -r "$jq_defs"' [.hooks[]?[]? | group_has_notify] | any' "$settings")"; then
+            echo -e "${RED}❌ No se pudo leer settings.json para limpiar el hook antiguo — conservado original${NC}"
+            return 1
+        fi
+
+        if [[ "$has_legacy" == "true" ]]; then
+            local tmp
+            tmp="$(mktemp "${settings}.XXXXXX")"
+            if ! jq "$jq_defs"'
+                (.hooks // {}) as $before
+                | if $before == {} then . else
+                    .hooks |= with_entries(
+                        if any(.value[]?; group_has_notify) then
+                            .value |= ([.[] | if group_has_notify then .hooks |= map(select(is_notify | not)) else . end]
+                                       | map(select((.hooks? // [1]) != [])))
+                            | select(.value | length > 0)
+                        else . end)
+                    | if .hooks == {} then del(.hooks) else . end
+                  end' "$settings" > "$tmp"; then
+                rm -f "$tmp"
+                echo -e "${RED}❌ Error limpiando el hook antiguo de settings.json — conservado original${NC}"
+                return 1
+            fi
+
+            local backup
+            backup="$(unique_backup_path "$settings")"
+            cp "$settings" "$backup"
+            chmod --reference="$settings" "$tmp"
+            mv "$tmp" "$settings"
+            echo -e "${GREEN}✅ settings.json: hooks de notify-hook.sh eliminados — el resto intacto${NC}"
+            echo -e "${YELLOW}   Backup: $backup${NC}"
+        fi
+    fi
+
+    if [[ -e "$script" ]] || [[ -L "$script" ]]; then
+        local script_backup
+        script_backup="$(unique_backup_path "$script")"
+        mv "$script" "$script_backup"
+        echo -e "${GREEN}✅ notify-hook.sh antiguo retirado de ~/.claude${NC}"
+        echo -e "${YELLOW}   Movido a: $script_backup${NC}"
+    fi
+}
+
 # ============================================
 # Claude Code
 # ============================================
@@ -225,20 +312,19 @@ install_import_block "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_HOME/CLAUDE.md" "CLAUDE.md
 
 # settings.json: merge con jq (repo manda, claves locales únicas
 # se preservan). El repo es fuente de verdad para permissions/
-# statusLine/hooks; claves runtime que escribe Claude Code en local
+# statusLine; claves runtime que escribe Claude Code en local
 # (enabledPlugins, effortLevel, advisorModel...) no las define el
 # repo, así que el merge no las toca.
 merge_json_repo_wins "$CLAUDE_DIR/settings.json" "$CLAUDE_HOME/settings.json" "settings.json"
+
+# Hook de notificaciones retirado del repo: limpia lo que dejó una instalación
+# anterior (entradas en settings.json y el script copiado)
+remove_legacy_notify_hook "$CLAUDE_HOME/settings.json" "$CLAUDE_HOME/notify-hook.sh"
 
 # statusline-command.sh: script que pinta la status line de Claude Code.
 # Se copia (no symlink) para que apps externas puedan modificarlo en
 # local sin ensuciar el repo.
 copy_file "$CLAUDE_DIR/statusline-command.sh" "$CLAUDE_HOME/statusline-command.sh" "statusline-command.sh"
-
-# notify-hook.sh: notificación "inteligente" para hooks Stop/Notification.
-# Solo dispara notify-send si la terminal NO está enfocada.
-copy_file "$CLAUDE_DIR/notify-hook.sh" "$CLAUDE_HOME/notify-hook.sh" "notify-hook.sh"
-chmod +x "$CLAUDE_HOME/notify-hook.sh"
 
 # skills/ NO se gestiona desde aquí. Las skills globales viven en
 # ~/.claude/skills/ como ficheros reales (incluyendo las del SDD/ai-team).
@@ -265,7 +351,6 @@ echo -e "  Claude Code:"
 echo -e "    ${YELLOW}~/.claude/CLAUDE.md${NC}                → bloque delimitado con @import (el resto del fichero, intacto)"
 echo -e "    ${YELLOW}~/.claude/settings.json${NC}            → merge JSON (repo manda, claves locales únicas se preservan)"
 echo -e "    ${YELLOW}~/.claude/statusline-command.sh${NC}    → copiado del repo (no symlink)"
-echo -e "    ${YELLOW}~/.claude/notify-hook.sh${NC}           → copiado del repo (notificación inteligente)"
 echo -e "    ${YELLOW}~/.claude/output-styles/${NC}           → copiado del repo (no symlink)"
 echo -e "    ${YELLOW}~/.claude/skills/${NC}                  → no gestionado (usar 'npx autoskills' por proyecto)"
 
