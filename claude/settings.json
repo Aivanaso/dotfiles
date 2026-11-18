@@ -25,7 +25,6 @@
       "Bash(mv *)",
       "Bash(chmod *)",
       "Bash(which *)",
-      "Bash(rg *)",
       "Bash(grep *)",
       "Bash(tree *)",
       "Bash(echo *)",
@@ -44,8 +43,6 @@
       "Bash(date *)",
       "Bash(du *)",
       "Bash(df *)",
-      "Bash(fd *)",
-      "Bash(fdfind *)",
       "mcp__pencil"
     ],
     "deny": [
