@@ -336,7 +336,7 @@ Purpose: a Plymouth boot splash theme (`ModuleName=script`) — an original dwar
 - **Multi-monitor:** the scene is centred in Plymouth's shared canvas (`Window.GetWidth()`/`GetHeight()` with no argument, the maximum across displays) with no `Window.GetX()`/`GetY()` offset added, because each display shows the centred part of that canvas — with displays of different widths (e.g. 2560 + 1920) the gate lands centred on each. Scaling uses the canvas height, so displays of different heights are not scaled individually
 - **Performance:** opacities are quantised to 1/40 and a sprite is only touched when its value changes; the refresh rate is set to 30 Hz
 - Only the descriptor, the script and the PNGs are installed; `generate_frames.py` stays in the repo
-- **Not verified on real hardware:** the script was checked by running it under Plymouth's own script interpreter (`script.so`) with stubbed `Window`/`Image`/`Sprite`, not by booting it. A preview needs root (`plymouthd --debug` on a spare VT) — see the activation steps `make plymouth` prints
+- **Verified booting on this machine:** besides the check under Plymouth's own script interpreter (`script.so`) with stubbed `Window`/`Image`/`Sprite`, the theme was booted for real here. Other hardware is untested. A preview without rebooting needs root (`plymouthd --debug` on a spare VT) — see the activation steps `make plymouth` prints
 
 ### git/.gitconfig
 
