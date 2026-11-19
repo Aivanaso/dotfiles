@@ -123,6 +123,78 @@ if [[ $- == *i* ]]; then
     fi
 fi
 
+# Lanzar Claude Code con modelo y esfuerzo elegidos.
+# Uso: cl [modelo] [esfuerzo] [args-de-claude...]
+#   modelo:   fable|f, opus|o, sonnet|s   (por defecto: opus)
+#   esfuerzo: low|l, medium|m, high|h, xhigh|x, max
+#             (por defecto, el recomendado del modelo: fable->high,
+#              opus->medium, sonnet->medium)
+# Sin argumentos, o si el primero empieza por '-', usa opus/medium y
+# reenvía todo tal cual (`cl -c` -> claude --model opus --effort medium -c).
+# Un segundo argumento posicional que no empieza por '-' y es un esfuerzo
+# reconocido se consume como esfuerzo; si no lo es, no es un error: se
+# reenvía a claude como prompt inicial (`cls "explica esto"`). El modelo
+# sí es estricto: uno desconocido imprime el error y devuelve 1. Los
+# atajos clf/clo/cls (ver aliases.sh) son alias de esta función con el
+# modelo ya puesto.
+cl() {
+    local model="opus" effort_defecto="" effort=""
+
+    if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+        model="$1"
+        shift
+    fi
+
+    case "$model" in
+        fable|f)   model="fable";  effort_defecto="high" ;;
+        opus|o)    model="opus";   effort_defecto="medium" ;;
+        sonnet|s)  model="sonnet"; effort_defecto="medium" ;;
+        *)
+            echo "❌ Modelo no válido: '$model'. Válidos: fable|f, opus|o, sonnet|s" >&2
+            return 1
+            ;;
+    esac
+
+    # Esfuerzo: solo se consume el siguiente argumento si es un esfuerzo
+    # reconocido; cualquier otra cosa se queda en "$@" para claude.
+    effort="$effort_defecto"
+    if [ $# -gt 0 ]; then
+        case "$1" in
+            low|l)     effort="low";    shift ;;
+            medium|m)  effort="medium"; shift ;;
+            high|h)    effort="high";   shift ;;
+            xhigh|x)   effort="xhigh";  shift ;;
+            max)       effort="max";    shift ;;
+        esac
+    fi
+
+    command claude --model "$model" --effort "$effort" "$@"
+}
+
+# Completado de cl (modelo en el 1er argumento, esfuerzo en el 2º) y de
+# sus atajos clf/clo/cls, donde el modelo ya va puesto y el esfuerzo es
+# el 1er argumento. Solo en shell interactiva; fuera de ella, no hace nada.
+if [[ $- == *i* ]]; then
+    _cl_complete() {
+        local cur="${COMP_WORDS[COMP_CWORD]}" pos="$COMP_CWORD" i
+        # Tras un argumento que empieza por '-' ya son opciones de claude
+        for ((i = 1; i < COMP_CWORD; i++)); do
+            if [[ "${COMP_WORDS[i]}" == -* ]]; then
+                COMPREPLY=()
+                return
+            fi
+        done
+        # Los atajos ya traen el modelo: su 1er argumento es el esfuerzo
+        [ "${COMP_WORDS[0]}" = "cl" ] || pos=$((pos + 1))
+        case "$pos" in
+            1) mapfile -t COMPREPLY < <(compgen -W "fable opus sonnet f o s" -- "$cur") ;;
+            2) mapfile -t COMPREPLY < <(compgen -W "low medium high xhigh max l m h x" -- "$cur") ;;
+            *) COMPREPLY=() ;;
+        esac
+    }
+    complete -F _cl_complete cl clf clo cls
+fi
+
 # Añadir un alias a ~/.dotfiles.local (override: $DOTFILES_LOCAL) y
 # dejarlo activo en el acto, sin abrir otra shell.
 # Uso: mkalias <nombre> <comando>

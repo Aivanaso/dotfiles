@@ -83,8 +83,16 @@ alias ....='cd ../../..'
 
 # Utilidades
 alias mkd='mkdir -p'
-alias cls='clear'
 
 # Búsqueda y navegación interactivas (funciones definidas en functions.sh)
 alias fif='find-in-files'
 alias glf='git-log-interactive'
+
+# ============================================
+# Claude
+# ============================================
+# Atajos de la función `cl` (functions.sh): modelo fijo, esfuerzo
+# recomendado del modelo; cualquier argumento extra se reenvía a claude.
+alias clf='cl fable'    # fable, high
+alias clo='cl opus'     # opus, medium
+alias cls='cl sonnet'   # sonnet, medium (antes: clear)
